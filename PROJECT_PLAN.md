@@ -576,8 +576,8 @@ Mark a task complete only when acceptance evidence exists. Do not mark work comp
 | Area | Status | Notes |
 |---|---|---|
 | Phase 0: Preparation | Done | Stack chosen, repository and privacy baseline in place; see `docs/` |
-| Phase 1: Design/mockup | Ready for review | Built and verified with synthetic data; waiting for the owner's approval |
-| Phase 2: Local application | Blocked | Requires explicit Phase 1 approval |
+| Phase 1: Design/mockup | Done | Merged on 2026-11-15; not yet tested on the real target devices |
+| Phase 2: Local application | Approved, not started | Starts with read-only discovery. Commands to real devices are tested only with the owner present |
 | Phase 3: Cluster deployment | Blocked | Requires explicit Phase 2 approval |
 | Privacy baseline | In place | `scripts/privacy-check.mjs` runs in every verify; see `docs/security-and-privacy.md` |
 | Target-device testing | Not started | Emulated viewports only so far; iPad Air 2 and iPhone 13 still to do |
@@ -587,7 +587,7 @@ Mark a task complete only when acceptance evidence exists. Do not mark work comp
 | Gate | Approval required to start | Approval recorded |
 |---|---|---|
 | Phase 1 | Start static design/mockup | Yes, 2026-11-15 (request to build the dashboard following this plan; read as Phase 0 and 1 only) |
-| Phase 2 | Start live HA integration/local app | No |
+| Phase 2 | Start live HA integration/local app | Yes, 2026-11-15 ("proceed with phase 2", given after Phase 1 was merged) |
 | Phase 3 | Start cluster/container/Helm work | No |
 | Production rollout | Deploy approved cluster changes | No |
 

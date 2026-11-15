@@ -6,7 +6,7 @@
 scripts/verify.sh
 ```
 
-Runs in a container, the same way CI does:
+Runs in a container, the same way CI does. CI runs on every pull request and on manual dispatch.
 
 | Step | Command | What it checks |
 |---|---|---|
