@@ -1,0 +1,141 @@
+/* Design tokens. Text and surface colours are plain hex so the contrast test can read them. */
+:root {
+  color-scheme: light;
+  --font: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  --r-card: 28px;
+  --r-tile: 18px;
+  --r-pill: 999px;
+
+  --bg: #e9efed;
+  --surface: #f3f6f5;
+  --tile: #fafcfb;
+  --raised: #ffffff;
+  --text: #1c2523;
+  --text-2: #4d5a57;
+  --text-3: #5f6c68;
+  --line: #d5dedb;
+  --line-strong: #b9c6c2;
+  --focus: #1f5fd0;
+
+  --teal: #1b6e61;
+  --teal-fill: #4fb3a1;
+  --teal-soft: #d6ede7;
+  --purple: #5548be;
+  --purple-fill: #7f73dd;
+  --purple-soft: #e5e2f8;
+  --orange: #a8421a;
+  --orange-fill: #ef7d45;
+  --orange-soft: #fbe5d8;
+  --amber: #7d5708;
+  --amber-fill: #e2b04e;
+  --amber-soft: #f5ead2;
+  --red: #9c3f2a;
+  --red-fill: #c8705a;
+  --red-soft: #f4dfd9;
+  --blue: #25637f;
+  --blue-fill: #4f9cc0;
+  --blue-soft: #d9ebf3;
+  --gold-a: #ecc874;
+  --gold-b: #d6a13c;
+  --gold-text: #3a2a06;
+  --solid: #5f6c68;
+  --solid-text: #ffffff;
+
+  --shadow: 0 1px 0 #ffffff inset, 0 14px 32px rgba(40, 70, 60, 0.1), 0 2px 6px rgba(40, 70, 60, 0.06);
+  --shadow-sm: 0 4px 12px rgba(40, 70, 60, 0.1), 0 1px 2px rgba(40, 70, 60, 0.08);
+  --shadow-pop: 0 18px 44px rgba(30, 50, 45, 0.22), 0 2px 8px rgba(30, 50, 45, 0.1);
+  --scrim: rgba(40, 52, 49, 0.42);
+  --glow: #cfe9e2;
+
+  --plan-room: #cfe9e2;
+  --plan-edge: #ffffff;
+  --plan-out: #eadfce;
+  --plan-lit: #f3e3b5;
+  --plan-side-l: #a9d2c8;
+  --plan-side-r: #bcdcd4;
+
+  --art-ground: #e9dccb;
+  --art-ground-l: #d2c1ab;
+  --art-ground-r: #dccdb9;
+  --art-paving: #f4ecdf;
+  --art-bed: #b9d2ab;
+  --art-wall-l: #efe4d3;
+  --art-wall-r: #dccdb7;
+  --art-roof: #c98d73;
+  --art-roof-back: #b27a62;
+  --art-flat: #e6d9c6;
+  --art-window: #7fa8b5;
+  --art-door: #8a6a55;
+  --art-panel: #2f4f6b;
+  --art-panel-grid: #8fb2cc;
+  --art-tree: #8fb08d;
+  --art-bush: #a5c09a;
+  --art-trunk: #8a7560;
+}
+
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --bg: #0e1413;
+  --surface: #18211f;
+  --tile: #1e2927;
+  --raised: #27332f;
+  --text: #e8efed;
+  --text-2: #b7c4c0;
+  --text-3: #9daba7;
+  --line: #2c3936;
+  --line-strong: #44544f;
+  --focus: #8fb8ff;
+
+  --teal: #74d3c0;
+  --teal-fill: #3f9f8e;
+  --teal-soft: #17352f;
+  --purple: #b9b1f7;
+  --purple-fill: #8a7fe6;
+  --purple-soft: #2a2750;
+  --orange: #f7a57a;
+  --orange-fill: #e2703a;
+  --orange-soft: #3d2418;
+  --amber: #ebc16a;
+  --amber-fill: #c9952f;
+  --amber-soft: #3a2f16;
+  --red: #f0a492;
+  --red-fill: #c0644e;
+  --red-soft: #3d211b;
+  --blue: #8ac6e2;
+  --blue-fill: #3f88ab;
+  --blue-soft: #16303c;
+  --solid: #5a6764;
+  --solid-text: #ffffff;
+
+  --shadow: 0 1px 0 rgba(255, 255, 255, 0.04) inset, 0 14px 32px rgba(0, 0, 0, 0.35);
+  --shadow-sm: 0 4px 12px rgba(0, 0, 0, 0.35);
+  --shadow-pop: 0 18px 44px rgba(0, 0, 0, 0.55);
+  --scrim: rgba(0, 0, 0, 0.55);
+  --glow: #1d3d36;
+
+  --plan-room: #24443e;
+  --plan-edge: #3f6f65;
+  --plan-out: #3b3528;
+  --plan-lit: #5c4d22;
+  --plan-side-l: #16302b;
+  --plan-side-r: #1c3a34;
+
+  --art-ground: #2d2b25;
+  --art-ground-l: #1d1c18;
+  --art-ground-r: #24231e;
+  --art-paving: #3a3831;
+  --art-bed: #2f4a35;
+  --art-wall-l: #5d574b;
+  --art-wall-r: #4b463c;
+  --art-roof: #8a5a47;
+  --art-roof-back: #6f4737;
+  --art-flat: #4f4a40;
+  --art-window: #86bdd0;
+  --art-door: #3a2c23;
+  --art-panel: #1c3550;
+  --art-panel-grid: #5b88ab;
+  --art-tree: #3f6a4c;
+  --art-bush: #37593f;
+  --art-trunk: #5a4a3a;
+}

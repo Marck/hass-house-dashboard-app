@@ -1,0 +1,16 @@
+{
+  "extends": "stylelint-config-recommended",
+  "plugins": ["stylelint-no-unsupported-browser-features"],
+  "rules": {
+    "no-descending-specificity": null,
+    "property-no-vendor-prefix": null,
+    "plugin/no-unsupported-browser-features": [
+      true,
+      {
+        "severity": "error",
+        "ignorePartialSupport": true,
+        "ignore": ["css3-cursors", "css-focus-visible", "text-size-adjust"]
+      }
+    ]
+  }
+}
