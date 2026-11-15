@@ -1,11 +1,10 @@
 name: CI
 
-# Runs for Renovate branches and on demand only. The normal path is local:
-# scripts/verify.sh runs exactly the same checks in a container.
+# Runs on pull requests (Renovate's included) and on demand. This repository is
+# public, so the minutes are free. scripts/verify.sh runs the same checks locally.
+# There is deliberately no push trigger: a branch with a pull request would run twice.
 on:
-  push:
-    branches:
-      - 'renovate/**'
+  pull_request:
     paths:
       - 'app/**'
       - 'tests/**'
@@ -23,7 +22,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: ci-${{ github.ref }}
+  group: ci-${{ github.head_ref || github.ref }}
   cancel-in-progress: true
 
 jobs:

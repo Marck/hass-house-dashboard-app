@@ -2,17 +2,46 @@
 
 A custom dashboard for Home Assistant: a whole-home overview with an interactive floor plan, a room detail sheet, an energy screen and a network screen. English and Dutch, light and dark.
 
-**Status: Phase 1.** The UI is complete and runs on synthetic demo data. It does not connect to Home Assistant yet. The roadmap and the approval gates are in [PROJECT_PLAN.md](PROJECT_PLAN.md).
+**Status: Phase 1 is done, Phase 2 is next.** The UI is complete and runs on synthetic demo data. It does not connect to Home Assistant yet.
+
+## Features
+
+- **Home:** people, status chips, a floor plan per floor with lights, motion, doors and warnings, and cards for lights and climate, music, irrigation and the evening.
+- **Room sheet:** climate with a target temperature for AC and heating, lights, motion history, switches.
+- **Energy:** property overview, battery, daily balance, consumption, and an optional EV charging card.
+- **Network:** a map with All, UniFi and Zigbee views, device details and uplink diagnostics.
+- **Yours to arrange:** floors, rooms, the areas and entities behind each room, and the cards on every screen, all from the UI.
+- **Built for a wall tablet:** works on an iPad Air 2 (Safari 15), a phone layout without the large artwork, and a desktop layout.
+
+## Roadmap
+
+| Phase | Scope | Status |
+|---|---|---|
+| 1 | Mocked UI on synthetic data | Done |
+| 2 | Live Home Assistant through a small backend, run locally | Approved, next |
+| 3 | Deployment on Kubernetes | Not started, needs Phase 2 |
+
+Requirements, decisions and the approval log are in [PROJECT_PLAN.md](PROJECT_PLAN.md).
+
+## Requirements
+
+| To | You need |
+|---|---|
+| Run the dashboard | Any static file server. The example below uses [uv](https://docs.astral.sh/uv/) |
+| Run the checks | podman or docker, or Node 26 |
+| Use it | Safari 15 or newer, or a current Chrome, Edge or Firefox |
+
+No account, API key or token is needed in Phase 1.
 
 ## Run it locally
 
-There is no build step and there are no runtime dependencies. Serve `app/frontend` with any static file server, for example with [uv](https://docs.astral.sh/uv/):
+There is no build step and there are no runtime dependencies. Serve `app/frontend`:
 
 ```bash
 uv run --no-project python -m http.server 4173 --bind 127.0.0.1 --directory app/frontend
 ```
 
-Then open <http://localhost:4173>. Nothing else is needed in Phase 1: no account, no API key, no token.
+Then open <http://localhost:4173>. To try it on a tablet or phone in the same network, replace `127.0.0.1` with the address of your machine and open that address on the device. The demo holds no real data.
 
 ## Using the dashboard
 
@@ -41,11 +70,33 @@ scripts/verify.sh
 
 This runs ESLint, Stylelint, the unit tests and the privacy check in a container (podman by default, `ENGINE=docker` for docker). With Node 26 installed, `npm ci && npm run verify` does the same. Details are in [docs/testing.md](docs/testing.md).
 
-CI runs the same command, only for Renovate branches and on manual dispatch.
+CI runs the same command on every pull request and on manual dispatch.
+
+## Project layout
+
+```text
+app/frontend/        the dashboard: index.html, css/, js/ (no build step)
+  js/fixtures/       synthetic demo data
+  js/config.js       the user's configuration and every edit operation
+  js/model.js        pure helpers between data, configuration and views
+  js/views/          one string renderer per screen or sheet
+tests/unit/          unit tests, run with node --test
+scripts/             verify.sh and the privacy check
+docs/                architecture, design system, testing, deployment, privacy
+```
 
 ## Deploy on Kubernetes
 
 Not available yet. Deployment is Phase 3 and needs Phase 2 first; the intended design is in [docs/deployment.md](docs/deployment.md).
+
+## Contributing
+
+1. Branch from `main` and keep the change small.
+2. Run `scripts/verify.sh` until it passes.
+3. Read your diff against [docs/security-and-privacy.md](docs/security-and-privacy.md): synthetic labels and generated ids only.
+4. Open a pull request. CI runs the same checks.
+
+New UI text goes into both `js/i18n/en.js` and `js/i18n/nl.js`; a test fails when they differ.
 
 ## Documentation
 
@@ -61,4 +112,4 @@ This repository is public. It contains synthetic labels and generated ids only: 
 
 ## License
 
-[MIT](LICENSE)
+[MIT](LICENSE), copyright the hass-house-dashboard-app contributors.
