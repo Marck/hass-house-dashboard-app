@@ -1,0 +1,39 @@
+# Private runtime configuration and secrets never belong in this public repository.
+.env
+.env.*
+!.env.example
+*.local
+*.local.*
+config.local.*
+secrets/
+private/
+*.pem
+*.key
+*.p12
+*.kubeconfig
+kubeconfig*
+
+# Household-specific material: raw inventories, exports, real floor plans, reference screenshots.
+reference/
+references/
+screenshots/
+dashboard-config*.json
+ha-export*/
+*.ha-export.json
+*.har
+
+# Tooling and build output
+node_modules/
+dist/
+coverage/
+.venv/
+__pycache__/
+*.log
+.DS_Store
+.claude/
+.idea/
+.vscode/
+
+# Helm build artifacts
+Chart.lock
+charts/*.tgz

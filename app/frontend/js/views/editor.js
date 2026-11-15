@@ -1,0 +1,173 @@
+// Configuration screens: floors and rooms, a room's links to Home Assistant
+// areas and entities, card layout, and the optional data sources.
+import { esc } from '../util.js';
+import { icon } from '../icons.js';
+import { roomEntities, evStats, netModel, netStats } from '../model.js';
+import { LABEL_MAX, EV_SLOTS, EV_ACCEPTS, NET_SOURCES, hiddenCards, netSources } from '../config.js';
+import { act, toggle, select, eyebrow, roomNameRaw, floorName, floorNameRaw, showId } from './parts.js';
+import { evValueText, SLOT_ICONS } from './ev.js';
+
+const KIND_ICONS = { light: 'bulb', switch: 'power', climate: 'radiator', door: 'door', motion: 'walk', temp: 'gauge' };
+
+const iconBtn = (action, arg, val, ic, label, disabled = false) => `<button type="button" class="icon-btn is-small" aria-label="${label}"${disabled ? ' disabled' : ''} ${act(action, arg, val)}>${icon(ic)}</button>`;
+
+const textInput = (label, input, arg, value) => `<input type="text" class="input" maxlength="${LABEL_MAX}" value="${esc(value)}" aria-label="${label}" data-input="${input}" data-arg="${esc(arg)}" data-fid="${input}:${esc(arg)}" autocomplete="off" autocapitalize="sentences" spellcheck="false">`;
+
+const floorOptions = (c, current) => c.d.floors.map((fl) => ({ value: fl.id, label: floorName(c, fl), selected: fl.id === current }));
+
+/** Shown under the top bar while the card layout is being edited. */
+export function editBar(c) {
+  const { s, cfg, t } = c;
+  const hidden = hiddenCards(cfg, s.view);
+  const add = hidden.map((id) => `<button type="button" class="btn" ${act('card-show', id)}>${icon('plus')}<span>${t(`card.${id}`)}</span></button>`).join('');
+  return `<div class="banner is-edit" role="region" aria-label="${t('layout.title')}"><span class="ic-box">${icon('edit')}</span>
+    <p><b>${t('layout.title')}</b><small>${t(hidden.length ? 'layout.hintHidden' : 'layout.hint')}</small></p>
+    <div class="btn-row">${add}
+      <button type="button" class="btn" ${act('settings')}>${icon('gear')}<span>${t('settings.title')}</span></button>
+      <button type="button" class="btn" ${act('layout-reset')}><span>${t('layout.reset')}</span></button>
+      <button type="button" class="btn btn-solid" ${act('edit-layout')}><span>${t('common.done')}</span></button></div></div>`;
+}
+
+/** Floors and their rooms: add, rename, reorder, move between floors, remove. */
+export function planEditor(c) {
+  const { d, t } = c;
+  const floors = d.floors.map((fl, fi) => {
+    const name = floorNameRaw(c, fl);
+    const rooms = fl.rooms.map((id, ri) => {
+      const rname = roomNameRaw(c, id);
+      return `<li class="ed-row"><span class="ic-box">${icon(d.rooms[id].icon)}</span><b class="ed-name">${esc(rname)}</b>
+        ${select({ label: t('edit.roomFloor', { name: rname }), input: 'room-floor', arg: id, options: floorOptions(c, fl.id) })}
+        ${iconBtn('room-move', id, 'up', 'up', t('edit.moveUp', { name: rname }), ri === 0)}
+        ${iconBtn('room-move', id, 'down', 'down', t('edit.moveDown', { name: rname }), ri === fl.rooms.length - 1)}
+        ${iconBtn('room-config', id, '', 'gear', t('edit.roomSettings', { name: rname }))}</li>`;
+    }).join('');
+    return `<section class="tile ed-floor">
+      <header class="ed-row">${textInput(t('edit.floorName'), 'floor-label', fl.id, name)}
+        ${iconBtn('floor-move', fl.id, 'up', 'up', t('edit.moveUp', { name }), fi === 0)}
+        ${iconBtn('floor-move', fl.id, 'down', 'down', t('edit.moveDown', { name }), fi === d.floors.length - 1)}
+        ${iconBtn('floor-remove', fl.id, '', 'trash', t('edit.removeFloor', { name }))}</header>
+      ${rooms ? `<ul class="ed-list">${rooms}</ul>` : `<p class="muted">${t('edit.noRooms')}</p>`}
+      <button type="button" class="btn btn-dashed" ${act('room-add', fl.id)}>${icon('plus')}<span>${t('edit.addRoom')}</span></button>
+    </section>`;
+  }).join('');
+  return `<div class="editor" role="group" aria-label="${t('edit.title')}">
+    <p class="muted">${t('edit.hint')}</p>${floors}
+    <button type="button" class="btn btn-dashed" ${act('floor-add')}>${icon('plus')}<span>${t('edit.addFloor')}</span></button></div>`;
+}
+
+const sheet = (c, head, body) => `<div class="sheet-backdrop" data-action="close-sheet"></div>
+  <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="sheet-title" data-scroll="sheet">
+    <span class="sheet-handle" aria-hidden="true"></span>
+    <button type="button" class="icon-btn sheet-close" aria-label="${c.t('common.close')}" ${act('close-sheet')}>${icon('close')}</button>
+    <header class="sheet-head">${head}</header>${body}</div>`;
+
+/** A room's own settings: name, floor, linked areas and the entities it shows. */
+export function roomConfigSheet(c, id) {
+  const { s, d, cfg, t, tn } = c;
+  const room = d.rooms[id];
+  const roomConfig = cfg.rooms[id];
+  const name = roomNameRaw(c, id);
+  const found = roomEntities(d, roomConfig);
+  const floor = d.floors.find((fl) => fl.id === room.floor);
+  const areaName = (areaId) => (d.ha.areas[areaId] ? t(d.ha.areas[areaId].nameKey) : showId(areaId));
+  const entityName = (entityId) => {
+    const e = d.ha.entities[entityId];
+    const own = { light: d.lights, switch: d.switches, climate: d.climate }[e.kind];
+    if (own) return c.tx(own[entityId].nameKey);
+    return c.tx(e.kind === 'door' ? e.door.nameKey : `entity.kind.${e.kind}`);
+  };
+  const unlink = (areaId) => `<button type="button" class="btn" ${act('area-unlink', id, areaId)}><span>${t('roomcfg.unlink')}</span></button>`;
+
+  const areaRows = roomConfig.areas.map((areaId) => {
+    if (!d.ha.areas[areaId]) {
+      return `<li class="tile ed-row is-missing"><span class="ic-box">${icon('alert')}</span>
+        <span class="ed-name"><b>${t('area.missing')}</b><small class="mono">${showId(areaId)}</small><small>${t('area.missingHelp')}</small></span>${unlink(areaId)}</li>`;
+    }
+    const count = found.list.filter((e) => e.area === areaId && e.via !== 'manual').length;
+    return `<li class="tile ed-row"><span class="ic-box">${icon('link')}</span>
+      <span class="ed-name"><b>${areaName(areaId)}</b><small><span class="mono">${showId(areaId)}</span> · ${tn('roomcfg.entityCount', count)}</small></span>${unlink(areaId)}</li>`;
+  }).join('');
+  const freeAreas = Object.keys(d.ha.areas).filter((areaId) => !roomConfig.areas.includes(areaId));
+  const areaPick = freeAreas.length ? select({
+    label: t('roomcfg.addArea'), input: 'area-pick', arg: id,
+    options: [{ value: '', label: t('roomcfg.addArea'), selected: true }].concat(freeAreas.map((areaId) => ({ value: areaId, label: `${areaName(areaId)} (${showId(areaId)})` }))),
+  }) : '';
+
+  const entityRows = found.list.map((e) => {
+    const ename = entityName(e.id);
+    const source = e.via === 'manual' ? t('roomcfg.via.manual') : `${areaName(e.area)} · ${t(`roomcfg.via.${e.via}`)}`;
+    const control = e.via === 'manual'
+      ? `<button type="button" class="btn" ${act('entity-drop', id, e.id)}><span>${t('roomcfg.remove')}</span></button>`
+      : toggle({ on: !e.excluded, label: t('roomcfg.show', { name: ename }), action: 'entity-toggle', arg: id, val: e.id });
+    return `<li class="tile ed-row${e.excluded ? ' is-dim' : ''}"><span class="ic-box">${icon(KIND_ICONS[e.kind] || 'chip')}</span>
+      <span class="ed-name"><b>${esc(ename)}</b><small>${t(`entity.kind.${e.kind}`)} · <span class="mono">${showId(e.id)}</span></small><small>${source}</small></span>${control}</li>`;
+  }).join('');
+  const missingRows = found.missingEntities.map((entityId) => `<li class="tile ed-row is-missing"><span class="ic-box">${icon('alert')}</span>
+    <span class="ed-name"><b>${t('entity.notFound')}</b><small class="mono">${showId(entityId)}</small><small>${t('entity.notFoundHelp')}</small></span>
+    <button type="button" class="btn" ${act('entity-drop', id, entityId)}><span>${t('roomcfg.remove')}</span></button></li>`).join('');
+  const candidates = Object.keys(d.ha.entities).filter((entityId) => !d.ha.entities[entityId].category && !found.list.some((e) => e.id === entityId));
+  const entityPick = candidates.length ? select({
+    label: t('roomcfg.addEntity'), input: 'entity-pick', arg: id,
+    options: [{ value: '', label: t('roomcfg.addEntity'), selected: true }].concat(candidates.map((entityId) => ({ value: entityId, label: `${esc(entityName(entityId))} (${showId(entityId)})` }))),
+  }) : '';
+  const shownCount = found.list.filter((e) => !e.excluded).length;
+  const confirming = s.confirm === `room:${id}`;
+
+  const head = `<div><p class="kicker">${t('roomcfg.title')}</p><h2 id="sheet-title">${esc(name)}</h2><p class="lead">${floorName(c, floor)}</p></div>`;
+  return sheet(c, head, `<p><button type="button" class="btn" ${act('room-back', id)}>${icon('back')}<span>${t('roomcfg.back')}</span></button></p>
+    <section>${eyebrow(t('roomcfg.basics'))}
+      <div class="form-grid"><label class="field"><span>${t('roomcfg.name')}</span>${textInput(t('roomcfg.name'), 'room-label', id, name)}</label>
+        <label class="field"><span>${t('roomcfg.floor')}</span>${select({ label: t('roomcfg.floor'), input: 'room-floor', arg: id, options: floorOptions(c, room.floor) })}</label></div></section>
+    <section>${eyebrow(t('roomcfg.areas'), tn('roomcfg.linkedCount', roomConfig.areas.length))}
+      <p class="muted">${t('roomcfg.areasHint')}</p><ul class="ed-list">${areaRows}</ul>${areaPick}</section>
+    <section>${eyebrow(t('roomcfg.entities'), tn('roomcfg.shownCount', shownCount))}
+      <p class="muted">${t('roomcfg.entitiesHint')}${found.filtered ? ` ${tn('roomcfg.filtered', found.filtered)}` : ''}</p>
+      <ul class="ed-list">${missingRows}${entityRows}</ul>${entityPick}</section>
+    <section>${eyebrow(t('roomcfg.danger'))}
+      <button type="button" class="btn btn-danger${confirming ? ' is-armed' : ''}" ${act('room-remove', id)}>${icon('trash')}<span>${t(confirming ? 'roomcfg.removeConfirm' : 'roomcfg.removeRoom')}</span></button>
+      <p class="muted">${t('roomcfg.removeHelp')}</p></section>`);
+}
+
+/** Optional features and data sources. Everything is set here, never in a file. */
+export function settingsSheet(c) {
+  const { s, d, cfg, t, tx, f } = c;
+  const all = evStats(d, { ev: { map: cfg.ev.map, hide: [] } });
+  const evOn = cfg.cards.energy.includes('ev');
+
+  const slots = EV_SLOTS.map((slot) => {
+    const name = tx(`ev.slot.${slot}`);
+    const mapped = cfg.ev.map[slot];
+    const stat = all[slot];
+    const state = stat ? evValueText(c, slot, stat) : t('settings.ev.notSet');
+    const fits = Object.keys(d.ev.entities).filter((entityId) => EV_ACCEPTS[slot].includes(d.ev.entities[entityId].cls));
+    const options = [{ value: '', label: t('settings.none'), selected: !mapped }].concat(fits.map((entityId) => ({ value: entityId, label: `${t(d.ev.entities[entityId].nameKey)} (${showId(entityId)})`, selected: entityId === mapped })));
+    if (mapped && !fits.includes(mapped)) options.push({ value: mapped, label: `${showId(mapped)} (${t('entity.notFound')})`, selected: true });
+    return `<li class="tile ed-row ed-wrap${stat && stat.error ? ' is-missing' : ''}"><span class="ic-box">${icon(SLOT_ICONS[slot])}</span>
+      <span class="ed-name"><b>${esc(name)}</b><small>${state}</small></span>
+      ${select({ label: t('settings.ev.entityFor', { name }), input: 'ev-map', arg: slot, options })}
+      ${toggle({ on: Boolean(mapped) && !cfg.ev.hide.includes(slot), label: t('settings.ev.showStat', { name }), action: 'ev-stat', arg: slot, disabled: !mapped })}</li>`;
+  }).join('');
+
+  const sources = netSources(cfg);
+  const sourceRows = NET_SOURCES.map((src) => {
+    const on = cfg.net[src];
+    const stats = on ? netStats(netModel(d, { net: { unifi: src === 'unifi', zigbee: src === 'zigbee' } }, src, s.site)) : null;
+    const status = on ? t('settings.net.connected', { n: f.num(stats.online + stats.offline) }) : t('settings.net.off');
+    return `<li class="tile ed-row"><span class="ic-box src-${src}">${icon(src === 'unifi' ? 'router' : 'chip')}</span>
+      <span class="ed-name"><b>${t(`net.src.${src}`)}</b><small>${on ? '<i class="dot is-ok"></i> ' : ''}${status}</small></span>
+      ${toggle({ on, label: t('settings.net.use', { name: tx(`net.src.${src}`) }), action: 'net-source', arg: src })}</li>`;
+  }).join('');
+  const confirming = s.confirm === 'config';
+
+  const head = `<div><h2 id="sheet-title">${t('settings.title')}</h2><p class="lead">${t('settings.lead')}</p></div>`;
+  return sheet(c, head, `<section>${eyebrow(t('card.ev'), t(evOn ? 'common.on' : 'common.off'))}
+      <div class="tile ed-row"><span class="ic-box">${icon('car')}</span><span class="ed-name"><b>${t('settings.ev.show')}</b><small>${t('settings.ev.showHelp')}</small></span>
+        ${toggle({ on: evOn, label: t('settings.ev.show'), action: 'card-toggle', arg: 'ev' })}</div>
+      <p class="muted ed-gap">${t('settings.ev.hint')}</p><ul class="ed-list">${slots}</ul></section>
+    <section>${eyebrow(t('settings.net'))}<p class="muted">${t('settings.net.hint')}</p><ul class="ed-list">${sourceRows}</ul>
+      ${sources.length ? '' : `<p class="menu-note is-warn">${t('settings.net.hidden')}</p>`}</section>
+    <section>${eyebrow(t('settings.backup'))}<p class="muted">${t('settings.backup.hint')}</p>
+      <div class="btn-row"><button type="button" class="btn" ${act('config-export')}><span>${t('settings.backup.export')}</span></button>
+        <label class="btn file-btn"><input type="file" class="sr-only" accept="application/json,.json" aria-label="${t('settings.backup.import')}" data-input="config-import" data-fid="config-import:"><span>${t('settings.backup.import')}</span></label>
+        <button type="button" class="btn btn-danger${confirming ? ' is-armed' : ''}" ${act('config-reset')}><span>${t(confirming ? 'settings.backup.resetConfirm' : 'settings.backup.reset')}</span></button></div></section>`);
+}

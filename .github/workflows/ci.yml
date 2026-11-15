@@ -1,0 +1,44 @@
+name: CI
+
+# Runs for Renovate branches and on demand only. The normal path is local:
+# scripts/verify.sh runs exactly the same checks in a container.
+on:
+  push:
+    branches:
+      - 'renovate/**'
+    paths:
+      - 'app/**'
+      - 'tests/**'
+      - 'scripts/**'
+      - 'package.json'
+      - 'package-lock.json'
+      - 'eslint.config.js'
+      - '.stylelintrc.json'
+      - '.browserslistrc'
+      - '.node-version'
+      - '.github/workflows/ci.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: .node-version
+          cache: npm
+      - name: Install
+        run: npm ci --no-audit --no-fund
+      - name: Lint, test and privacy check
+        run: npm run verify
