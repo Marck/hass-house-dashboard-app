@@ -287,6 +287,14 @@ h2 { font-size: 19px; font-weight: 600; }
 .now-state { display: inline-flex; flex: none; color: var(--text-3); }
 .now-state.is-playing { color: var(--teal); }
 .ed-members { flex: 1 1 100%; }
+.onboard-dots { display: flex; gap: 6px; margin: 0 0 18px; }
+.onboard-dots i { flex: 1 1 0; height: 4px; border-radius: 2px; background: var(--line-strong); }
+.onboard-dots i.is-on, .onboard-dots i.is-done { background: var(--teal-fill); }
+.onboard-nav { justify-content: space-between; margin-top: 22px; }
+.opt { width: 100%; margin-bottom: 8px; text-align: left; }
+.opt.is-on { box-shadow: 0 0 0 2px var(--teal-fill); }
+.opt > .ic { flex: none; color: var(--teal); }
+.pair-code { padding: 6px 12px; border-radius: 10px; background: var(--bg); font-size: 20px; font-weight: 700; letter-spacing: 0.12em; font-variant-numeric: tabular-nums; }
 .ed-members .field-label { margin-top: 4px; }
 .zone-list { margin: 10px 0 12px; }
 .zone-list li { display: flex; align-items: center; gap: 12px; padding: 4px 0; font-weight: 600; }

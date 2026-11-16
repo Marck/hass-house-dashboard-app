@@ -13,7 +13,7 @@ const STATE = {
   theme: { mode: 'auto', manual: 'light' }, sun: 'above', layout: 'desktop', netWidth: 1000, view: 'home', room: null, roomCfg: false,
   settings: false, floor: 'floor_01', netTab: 'network', netView: 'all', site: 'site_01', device: null, evPeriod: 'day', menu: null,
   edit: false, planEdit: false, confirm: null, locked: false, pinPad: false, pinEntry: '', diag: null,
-  grouping: false, musicSel: null, musicPick: [],
+  grouping: false, musicSel: null, musicPick: [], onboard: null,
 };
 
 /** What main.js collects from the browser for the diagnostics section. */

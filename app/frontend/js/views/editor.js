@@ -210,6 +210,7 @@ export function settingsSheet(c) {
     <section>${eyebrow(t('settings.backup'))}<p class="muted">${t('settings.backup.hint')}</p>
       <div class="btn-row"><button type="button" class="btn" ${act('config-export')}><span>${t('settings.backup.export')}</span></button>
         <label class="btn file-btn"><input type="file" class="sr-only" accept="application/json,.json" aria-label="${t('settings.backup.import')}" data-input="config-import" data-fid="config-import:"><span>${t('settings.backup.import')}</span></label>
+        <button type="button" class="btn" ${act('onboard-start')}><span>${t('onboard.again')}</span></button>
         <button type="button" class="btn btn-danger${confirming ? ' is-armed' : ''}" ${act('config-reset')}><span>${t(confirming ? 'settings.backup.resetConfirm' : 'settings.backup.reset')}</span></button></div></section>
     ${diagnosticsSection(c)}${aboutSection(c)}`);
 }

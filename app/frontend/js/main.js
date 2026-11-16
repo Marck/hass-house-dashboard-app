@@ -5,6 +5,7 @@ import { createI18n, LANGS } from './i18n/index.js';
 import { resolveTheme, MODES, SUN_STATES } from './theme.js';
 import { commands, applyConfig } from './model.js';
 import { musicCommands, groupable, tempGroup } from './music.js';
+import { needsOnboarding, startOnboarding, isLastStep, moveStep, toggleRoom, applyOnboarding, SIGNIN_MODES } from './onboard.js';
 import { CARDS, defaultConfig, normalizeConfig, parseConfig, serializeConfig, edit, netViews } from './config.js';
 import { appView, context } from './views/app.js';
 import { climateVisual, climateStatus } from './views/room.js';
@@ -17,6 +18,7 @@ import {
 const PREFS_KEY = 'hhd.prefs';
 const CONFIG_KEY = 'hhd.config';
 const DEVICE_KEY = 'hhd.device'; // child lock; belongs to this device, never exported
+const SETUP_KEY = 'hhd.setup'; // whether the first-run setup was started or finished on this device
 const IMPORT_MAX_BYTES = 200000;
 const THEME_COLORS = { light: '#e9efed', dark: '#0e1413' };
 const root = document.getElementById('app');
@@ -70,11 +72,14 @@ const s = {
   grouping: false, // the sheet for temporary speaker groups
   musicSel: null, // the speaker or group the music card shows
   musicPick: [], // speakers ticked in that sheet
+  onboard: null, // the first-run setup while it is open
 };
 s.locked = s.lock.enabled;
 const d = createFixture();
 // The configuration (names the user typed, links to areas and entities) stays in
 // this browser in Phase 1. It is never sent anywhere.
+// A clean device starts with the setup. A locked one never does: it was set up before.
+if (!s.locked && needsOnboarding(loadJson(CONFIG_KEY), loadJson(SETUP_KEY))) s.onboard = startOnboarding();
 let cfg = normalizeConfig(loadJson(CONFIG_KEY), d);
 applyConfig(d, cfg);
 let i18n = createI18n(s.lang);
@@ -88,6 +93,8 @@ let pinBlockedUntil = 0;
 
 const savePrefs = () => saveJson(PREFS_KEY, JSON.stringify({ lang: s.lang, mode: s.theme.mode, manual: s.theme.manual }));
 const saveDevice = () => saveJson(DEVICE_KEY, JSON.stringify({ lock: s.lock }));
+const saveSetup = (state) => saveJson(SETUP_KEY, JSON.stringify(state));
+if (s.onboard) saveSetup({ started: true });
 
 function toast(key, params) {
   toastEl.textContent = i18n.tx(key, params);
@@ -110,6 +117,7 @@ function applyStyles(scope) {
 
 const sheetKey = () => {
   if (s.pinPad) return 'pin';
+  if (s.onboard && !s.locked) return `onboard/${s.onboard.step}`;
   if (s.settings) return 'settings';
   if (s.grouping) return 'speakers';
   return s.room ? `${s.room}${s.roomCfg ? '/config' : ''}` : null;
@@ -599,6 +607,41 @@ const actions = {
   },
 
   // ----- Optional features, data sources, backup -----
+  // ----- First-run setup -----
+  'onboard-start'() {
+    s.onboard = startOnboarding();
+    saveSetup({ started: true });
+    return go(`#/${s.view}`);
+  },
+  'onboard-back': () => moveStep(s.onboard, 'back'),
+  'onboard-next'() {
+    if (!isLastStep(s.onboard)) {
+      moveStep(s.onboard, 'next');
+      return;
+    }
+    applyOnboarding(cfg, s.onboard);
+    actions['onboard-skip']();
+  },
+  /** Leave the setup. What was chosen so far stays; everything is in the settings too. */
+  'onboard-skip'() {
+    s.onboard = null;
+    saveSetup({ done: true });
+    commit();
+    toast('toast.setupDone');
+  },
+  // The next three are designs of what the backend will do. Nothing is contacted.
+  'onboard-connect'() {
+    s.onboard.connected = true;
+  },
+  'onboard-signin'(mode) {
+    if (SIGNIN_MODES.includes(mode)) s.onboard.signin = mode;
+  },
+  'onboard-pair'() {
+    s.onboard.paired = true;
+  },
+  'onboard-room'(roomId) {
+    if (d.rooms[roomId]) toggleRoom(s.onboard, roomId);
+  },
   'ev-stat'(slot) {
     if (edit.toggleEvStat(cfg, slot)) commit();
   },
