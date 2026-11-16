@@ -177,6 +177,30 @@ Additional requirements:
 - Diagnostics: browser, screen size, layout in use, and a pass or fail for each browser feature the application relies on. Script errors are shown on screen, because a tablet has no console.
 - About: version, the commit it was built from (with a note when the build had uncommitted changes), whether that commit is a tagged release, and the build date. The version is written in one place. The values are recorded when the image is built; a copy served from a checkout reads them from git.
 
+### 2.12 Music: several speakers, speaker groups and rooms (added 2026-11-16)
+
+An extension of the existing music card, not a separate music application.
+
+- The card adapts to what is playing:
+  - Nothing active: the normal idle card, no tabs.
+  - One active speaker or group: shown directly, no tabs.
+  - Several active: one tab per active speaker or group. Switching tabs never interrupts playback. Tabs follow playback as it starts and stops.
+- A compact overview lists every active speaker and group: name, room, status, title, artist and small artwork where available. An item opens its controls. It complements the tabs and can be switched off.
+- Speakers and groups are told apart by icon and text. A member of an active group is not shown as a session of its own while it plays what the group plays.
+- Controls for the selected target: play and pause, previous and next, volume, stop casting, status, title, artist, artwork. Only controls the selected player supports are shown.
+- Stop casting names its target and affects that speaker or group only. An unavailable speaker or a failed call gives a message, never a broken card.
+- Temporary groups: pick several speakers (one by one or a whole room), start playback on them as one target, see the members, change the group volume, dissolve the group. Offered only for speakers that report the grouping capability. Permanent groups are never changed.
+- Rooms: a speaker belongs to the dashboard room that shows its entity, through the existing area links and entity rules of section 2.8. There is no second room configuration. A room may hold several speakers and a group may span rooms.
+- Settings, in the dashboard only: multi-speaker support on or off, which speakers and groups are managed, display names, a preferred speaker or group, which playback details are shown, and the overview on or off. No entity IDs in code and no manufacturer assumed.
+- A managed speaker that no longer exists is reported on the card and in the settings; a speaker that is not managed is simply not shown (same rule as 2.8).
+- Home Assistant is the integration layer: entity discovery, live state over WebSocket, media player services for control. No credentials in the browser.
+
+Checked against the Home Assistant source (`cast/media_player.py` and `media_player/const.py` on the `dev` branch, 2026-11-16), because it limits what can be built:
+
+- Google Cast players do not report the grouping capability and have no `join`. Home Assistant cannot create a temporary group of Cast speakers; those groups are made in the Google Home app and appear as their own media player. Temporary grouping therefore works only for integrations that do report it.
+- A playing Cast group makes its members report the group's media, and Home Assistant does not expose which speakers belong to a group. The dashboard has to learn the membership: chosen by the user in the settings, or inferred by the backend. Decide in Phase 2.
+- For a Cast player `turn_off` quits the casting app, which is what "stop casting" means; `media_stop` only stops the media. Other integrations may differ, so the backend picks the service per player.
+
 ## 3. Proposed technical approach
 
 Validate this proposal against the architecture diagram and older-device compatibility before selecting final technologies.
@@ -308,6 +332,18 @@ Planning/discovery only. This phase does not authorize implementation or live-sy
 
 Accepted when: with the lock on, no control at the chosen level reacts while every screen can still be viewed; hold and PIN both unlock; the lock returns after the idle time; the lock is not part of the exported configuration; and the about section shows the commit of the build.
 
+### 5.9 Music with several speakers (mocked, added 2026-11-16)
+
+- [ ] Music card for no, one and several active speakers, with dynamic tabs.
+- [ ] Compact overview of active speakers and groups.
+- [ ] Synthetic speakers with different capabilities, a permanent group and its members, and an unavailable speaker.
+- [ ] Stop casting for the selected target only.
+- [ ] Temporary grouping sheet with selection per speaker and per room, offered only where the capability exists.
+- [ ] Room names from the existing room configuration.
+- [ ] Settings section for everything in 2.12.
+
+Accepted when: the tabs and the overview follow playback without a reload; a group hides its members only while they play the same thing; stopping or grouping one target leaves the others untouched; a speaker without a capability shows no control for it; and a managed speaker that does not exist is reported.
+
 ### Phase 1 deliverables
 
 - Static mockup/prototype with no live HA calls.
@@ -407,6 +443,16 @@ Accepted when: with the lock on, no control at the chosen level reacts while eve
 - [ ] EV: entity discovery for the pickers, live states, statistics over selectable periods where supported. Test combinations of mapped, unmapped and unavailable entities and of units.
 - [ ] Network: read UniFi and Zigbee devices through Home Assistant, with a status per source. Verify which fields each integration really exposes before designing the live map.
 
+### 6.8 Music with several speakers
+
+Not started. Needs the owner's go like the rest of Phase 2.
+
+- [ ] Media player discovery and live state for the managed players, with each player's real capabilities.
+- [ ] Group membership: decide between user-chosen members and inference by the backend, then test that members are not listed twice.
+- [ ] Controls through media player services, choosing the stop service per player.
+- [ ] Temporary grouping through `join` and `unjoin` where the capability is reported; verify with the owner's real speakers which ones qualify.
+- [ ] Test combinations of single speakers and groups, missing metadata, and speakers that disconnect.
+
 ### Phase 2 deliverables
 
 - Functional local web application.
@@ -497,6 +543,7 @@ The purpose is testing on the real iPad as early as possible. This is the only a
 
 - [ ] Room-to-area discovery and live updates work through the in-cluster backend.
 - [ ] EV charging and the network views are tested against the deployment on the iPad Air 2 and iPhone 13.
+- [ ] Music: several speakers and groups on the iPad Air 2 and iPhone 13, including speakers that disconnect, become unavailable or stop, and proof that stopping or grouping one target leaves the others playing.
 
 ### Phase 3 deliverables
 
@@ -663,6 +710,7 @@ Resolve these at the appropriate gate; do not block the planning document on det
 - [ ] Confirm desired LAN/VPN access enforcement point during Phase 3 review. Direction 2026-11-15: forward auth through the existing identity provider at the ingress.
 - [ ] Confirm minimum browser versions after checking iPad Air 2 installed iOS/Safari version. Assumed Safari 15 (iPadOS 15.8 is the last release for that model); the installed version is not confirmed.
 - [ ] Phase 2: confirm which Zigbee integration is in use and which fields the UniFi and Zigbee integrations expose through Home Assistant.
+- [ ] Phase 2: which of the owner's speakers report the grouping capability, and how group membership is learned (section 2.12).
 - [ ] Phase 3: confirm NetworkPolicy enforcement in the cluster, whether Home Assistant uses host networking, and that the identity provider's login page works in Safari 15.
 
 ## 13. Definition of done
