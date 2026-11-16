@@ -1,0 +1,56 @@
+name: Image
+
+# Builds the preview image and publishes it to the GitHub container registry.
+# Manual only: it runs when someone starts it, never on a push or a schedule.
+on:
+  workflow_dispatch:
+    inputs:
+      channel:
+        description: Shown in Settings, About
+        type: choice
+        options:
+          - preview
+          - stable
+        default: preview
+
+permissions:
+  contents: read
+  packages: write
+
+concurrency:
+  group: image-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          fetch-depth: 0 # tags, so the image can say whether this commit is a release
+      - name: Build for amd64 and arm64, and push
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          CHANNEL: ${{ inputs.channel }}
+        run: |
+          set -eu
+          owner="$(printf '%s' "$GITHUB_REPOSITORY_OWNER" | tr '[:upper:]' '[:lower:]')"
+          image="ghcr.io/${owner}/${GITHUB_REPOSITORY#*/}"
+          tag="$(git tag --points-at HEAD | grep '^v' | head -n 1 || true)"
+          printf '%s' "$GITHUB_TOKEN" | docker login ghcr.io --username "$GITHUB_ACTOR" --password-stdin
+          docker buildx create --use
+          docker buildx build \
+            --file Containerfile \
+            --platform linux/amd64,linux/arm64 \
+            --build-arg GIT_SHA="$GITHUB_SHA" \
+            --build-arg GIT_TAG="$tag" \
+            --build-arg BUILD_CHANNEL="$CHANNEL" \
+            --build-arg BUILT_ON="$(date -u +%F)" \
+            --label "org.opencontainers.image.source=${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}" \
+            --label "org.opencontainers.image.revision=${GITHUB_SHA}" \
+            --tag "${image}:${GITHUB_SHA}" \
+            --tag "${image}:${CHANNEL}" \
+            --push .
+          echo "Published ${image}:${GITHUB_SHA}" >> "$GITHUB_STEP_SUMMARY"
