@@ -140,9 +140,9 @@ export function homeView(c) {
       <span class="chip"><i class="dot is-warn"></i>${t('guard.label')} <b>${t(d.guardKey)}</b></span>
     </div>
     <section class="card plan" aria-label="${t('plan.title')}">
-      <div class="plan-head">${floorTabs}${editBtn}</div>
+      <div class="plan-head">${floorTabs}${s.locked ? '' : editBtn}</div>
       ${s.layout === 'phone' ? roomList(c, floor) : floorplan(c, floor) + legend(c)}
-      ${s.planEdit ? planEditor(c) : ''}
+      ${s.planEdit && !s.locked ? planEditor(c) : ''}
     </section>
     ${cardGrid(c, 'home', HOME_CARDS, 'grid-home')}`;
 }

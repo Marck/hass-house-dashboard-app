@@ -8,9 +8,14 @@ import { CARDS, defaultConfig, normalizeConfig, parseConfig, serializeConfig, ed
 import { appView, context } from './views/app.js';
 import { climateVisual, climateStatus } from './views/room.js';
 import { EV_PERIODS } from './views/ev.js';
+import {
+  LOCK_SCOPES, LOCK_METHODS, LOCK_IDLE_MINUTES, HOLD_MS, PIN_LENGTH, PIN_TRIES, PIN_WAIT_MS,
+  normalizeLock, isBlocked, isPin, hashPin, checkPin, unlockMethod,
+} from './lock.js';
 
 const PREFS_KEY = 'hhd.prefs';
 const CONFIG_KEY = 'hhd.config';
+const DEVICE_KEY = 'hhd.device'; // child lock; belongs to this device, never exported
 const IMPORT_MAX_BYTES = 200000;
 const THEME_COLORS = { light: '#e9efed', dark: '#0e1413' };
 const root = document.getElementById('app');
@@ -56,7 +61,13 @@ const s = {
   edit: false, // card layout edit mode
   planEdit: false, // floors and rooms editor
   confirm: null, // a destructive action waiting for its second tap
+  lock: normalizeLock((loadJson(DEVICE_KEY) || {}).lock),
+  locked: false, // set below: a device with the child lock on starts locked
+  pinPad: false,
+  pinEntry: '',
+  diag: null, // filled while the settings are open
 };
+s.locked = s.lock.enabled;
 const d = createFixture();
 // The configuration (names the user typed, links to areas and entities) stays in
 // this browser in Phase 1. It is never sent anywhere.
@@ -66,8 +77,13 @@ let i18n = createI18n(s.lang);
 let lastSheet = null;
 let focusNext = null;
 let toastTimer = 0;
+let idleTimer = 0;
+let holdTimer = 0;
+let pinFails = 0;
+let pinBlockedUntil = 0;
 
 const savePrefs = () => saveJson(PREFS_KEY, JSON.stringify({ lang: s.lang, mode: s.theme.mode, manual: s.theme.manual }));
+const saveDevice = () => saveJson(DEVICE_KEY, JSON.stringify({ lock: s.lock }));
 
 function toast(key, params) {
   toastEl.textContent = i18n.tx(key, params);
@@ -88,7 +104,43 @@ function applyStyles(scope) {
   });
 }
 
-const sheetKey = () => (s.settings ? 'settings' : s.room ? `${s.room}${s.roomCfg ? '/config' : ''}` : null);
+const sheetKey = () => {
+  if (s.pinPad) return 'pin';
+  if (s.settings) return 'settings';
+  return s.room ? `${s.room}${s.roomCfg ? '/config' : ''}` : null;
+};
+// Which control gets the focus back when a sheet closes.
+const OPENERS = { settings: 'settings::', pin: 'unlock::' };
+
+/** What the browser on this device can do. Shown in the settings, since a tablet has no console. */
+function diagnostics() {
+  const supports = (prop, value) => Boolean(window.CSS && window.CSS.supports && window.CSS.supports(prop, value));
+  const works = (fn) => {
+    try {
+      return Boolean(fn());
+    } catch (err) {
+      return false;
+    }
+  };
+  return {
+    agent: navigator.userAgent,
+    width: window.innerWidth,
+    height: window.innerHeight,
+    touch: navigator.maxTouchPoints > 0,
+    checks: [
+      { id: 'storage', ok: works(() => { window.localStorage.setItem('hhd.probe', '1'); window.localStorage.removeItem('hhd.probe'); return true; }) },
+      { id: 'plural', ok: works(() => new Intl.PluralRules('nl').select(1)) },
+      { id: 'currency', ok: works(() => new Intl.NumberFormat('nl', { style: 'currency', currency: 'EUR' }).format(1)) },
+      { id: 'cssEscape', ok: works(() => window.CSS.escape('a:b') === 'a\\:b') },
+      { id: 'matchMedia', ok: works(() => window.matchMedia('(min-width: 1px)').matches) },
+      { id: 'pointer', ok: 'PointerEvent' in window },
+      { id: 'file', ok: 'FileReader' in window && 'Blob' in window && works(() => window.URL.createObjectURL) },
+      { id: 'backdrop', ok: supports('backdrop-filter', 'blur(1px)') || supports('-webkit-backdrop-filter', 'blur(1px)') },
+      { id: 'clipPath', ok: supports('clip-path', 'inset(50%)') || supports('-webkit-clip-path', 'inset(50%)') },
+      { id: 'colorScheme', ok: supports('color-scheme', 'dark') },
+    ],
+  };
+}
 
 function render() {
   const active = document.activeElement;
@@ -106,6 +158,7 @@ function render() {
   html.setAttribute('lang', s.lang);
   html.setAttribute('data-theme', theme);
   html.classList.toggle('has-sheet', Boolean(sheet));
+  html.classList.toggle('is-locked', s.locked);
   document.title = `${i18n.tx(`nav.${s.view}`)} · ${i18n.tx('app.title')}`;
   const meta = document.querySelector('meta[name="theme-color"]');
   if (meta) meta.setAttribute('content', THEME_COLORS[theme]);
@@ -115,7 +168,7 @@ function render() {
   if (nextScroller && sheet === lastSheet) nextScroller.scrollTop = scrollTop;
   let target = fid ? find(fid) : null;
   if (sheet && sheet !== lastSheet) target = root.querySelector('.sheet-close');
-  if (!sheet && lastSheet) target = find(lastSheet === 'settings' ? 'settings::' : `room:${lastSheet.split('/')[0]}:`) || target;
+  if (!sheet && lastSheet) target = find(OPENERS[lastSheet] || `room:${lastSheet.split('/')[0]}:`) || target;
   if (focusNext) {
     target = find(focusNext) || target;
     focusNext = null;
@@ -143,9 +196,11 @@ function route() {
   s.view = match ? match[1] : 'home';
   if (s.view === 'network' && !netViews(cfg).length) s.view = 'home'; // no source, no network screen
   const sub = match ? match[2] : null;
-  s.settings = sub === 'settings';
-  s.room = sub && !s.settings && s.view === 'home' && d.rooms[sub] ? sub : null;
-  s.roomCfg = Boolean(s.room && match[3]);
+  // A locked device shows no settings, whatever the address says.
+  s.settings = sub === 'settings' && !s.locked;
+  s.room = sub && sub !== 'settings' && s.view === 'home' && d.rooms[sub] ? sub : null;
+  s.roomCfg = Boolean(s.room && match[3]) && !s.locked;
+  s.diag = s.settings ? diagnostics() : null;
   if (s.room) s.floor = d.rooms[s.room].floor;
   if (!d.floors.some((fl) => fl.id === s.floor)) s.floor = d.floors[0].id;
   if (!netViews(cfg).includes(s.netView)) s.netView = 'all';
@@ -165,6 +220,55 @@ const go = (hash) => {
   window.location.hash = hash;
   return false; // the hashchange handler renders
 };
+
+/** Lock the device and go back to the home screen, with sheets and edit modes closed. */
+function lockNow() {
+  window.clearTimeout(idleTimer);
+  s.locked = true;
+  s.edit = false;
+  s.planEdit = false;
+  s.pinPad = false;
+  s.pinEntry = '';
+  if (go('#/home')) {
+    route();
+    render();
+  }
+}
+
+/** Restart the countdown to the automatic lock. Called on every touch and key press. */
+function resetIdle() {
+  window.clearTimeout(idleTimer);
+  if (s.lock.enabled && !s.locked) idleTimer = window.setTimeout(lockNow, s.lock.idle * 60000);
+}
+
+function unlock() {
+  s.locked = false;
+  s.pinPad = false;
+  s.pinEntry = '';
+  pinFails = 0;
+  resetIdle();
+  render();
+  toast('toast.unlocked');
+}
+
+const lockedHint = () => toast(unlockMethod(s.lock) === 'pin' ? 'toast.lockedPin' : 'toast.lockedHold');
+
+function endHold() {
+  window.clearTimeout(holdTimer);
+  holdTimer = 0;
+  const button = root.querySelector('.is-holding');
+  if (button) button.classList.remove('is-holding');
+}
+
+/** Press and hold: the lock opens only when the press lasts the full time. */
+function startHold(button) {
+  if (holdTimer || !s.locked || unlockMethod(s.lock) !== 'hold') return;
+  button.classList.add('is-holding');
+  holdTimer = window.setTimeout(() => {
+    endHold();
+    unlock();
+  }, HOLD_MS);
+}
 
 function exportConfig() {
   const url = window.URL.createObjectURL(new window.Blob([serializeConfig(cfg)], { type: 'application/json' }));
@@ -371,6 +475,76 @@ const actions = {
     if (edit.dropEntity(cfg, roomId, entityId)) commit();
   },
 
+  // ----- Child lock (this device only) -----
+  unlock() {
+    if (!s.locked) return false;
+    if (unlockMethod(s.lock) !== 'pin') {
+      lockedHint();
+      return false;
+    }
+    if (Date.now() < pinBlockedUntil) {
+      toast('toast.pinWait');
+      return false;
+    }
+    s.pinPad = true;
+    s.pinEntry = '';
+    return true;
+  },
+  'pin-digit'(digit) {
+    if (!s.pinPad || !/^\d$/.test(digit)) return false;
+    s.pinEntry += digit;
+    if (s.pinEntry.length < PIN_LENGTH) return true;
+    if (checkPin(s.lock, s.pinEntry)) {
+      unlock();
+      return false;
+    }
+    s.pinEntry = '';
+    pinFails += 1;
+    if (pinFails >= PIN_TRIES) {
+      // Mashing the keys gets a pause, not endless tries.
+      pinFails = 0;
+      pinBlockedUntil = Date.now() + PIN_WAIT_MS;
+      s.pinPad = false;
+      toast('toast.pinWait');
+    } else {
+      toast('toast.pinWrong');
+    }
+    return true;
+  },
+  'pin-back'() {
+    s.pinEntry = s.pinEntry.slice(0, -1);
+  },
+  'pin-cancel'() {
+    s.pinPad = false;
+    s.pinEntry = '';
+  },
+  'lock-toggle'() {
+    s.lock.enabled = !s.lock.enabled;
+    saveDevice();
+    resetIdle();
+  },
+  'lock-scope'(value) {
+    if (!LOCK_SCOPES.includes(value)) return;
+    s.lock.scope = value;
+    saveDevice();
+  },
+  'lock-method'(value) {
+    if (!LOCK_METHODS.includes(value)) return;
+    s.lock.method = value;
+    saveDevice();
+  },
+  'lock-idle'(value) {
+    if (!LOCK_IDLE_MINUTES.includes(Number(value))) return;
+    s.lock.idle = Number(value);
+    saveDevice();
+    resetIdle();
+  },
+  'lock-now'() {
+    if (!s.lock.enabled) return true;
+    lockNow();
+    return false;
+  },
+
   // ----- Optional features, data sources, backup -----
   'ev-stat'(slot) {
     if (edit.toggleEvStat(cfg, slot)) commit();
@@ -416,6 +590,15 @@ const inputs = {
   'ev-map'(slot, entityId) {
     if (edit.setEvEntity(cfg, slot, entityId)) commit();
   },
+  'lock-pin'(arg, value) {
+    if (!isPin(value)) {
+      toast('toast.pinFormat');
+      return;
+    }
+    s.lock.pin = hashPin(value);
+    saveDevice();
+    toast('toast.pinSaved');
+  },
 };
 
 root.addEventListener('click', (event) => {
@@ -427,8 +610,13 @@ root.addEventListener('click', (event) => {
     if (hadMenu && !s.menu) render();
     return;
   }
-  const fn = actions[el.getAttribute('data-action')];
+  const name = el.getAttribute('data-action');
+  const fn = actions[name];
   if (!fn) return;
+  if (isBlocked(s.lock, s.locked, name)) {
+    lockedHint();
+    return;
+  }
   const result = fn(el.getAttribute('data-arg') || '', el.getAttribute('data-val') || '', el);
   if (hadConfirm && s.confirm === hadConfirm) s.confirm = null; // any other tap disarms a pending confirmation
   if (result !== false) render();
@@ -438,6 +626,11 @@ root.addEventListener('click', (event) => {
 root.addEventListener('input', (event) => {
   const el = event.target;
   const kind = el.getAttribute && el.getAttribute('data-input');
+  if (kind && isBlocked(s.lock, s.locked, kind)) {
+    render(); // puts the slider back where it was
+    lockedHint();
+    return;
+  }
   if (kind === 'volume') {
     commands.setVolume(d, el.value);
     const out = root.querySelector('[data-bind="volume"]');
@@ -458,6 +651,10 @@ root.addEventListener('input', (event) => {
 root.addEventListener('change', (event) => {
   const el = event.target;
   const kind = el.getAttribute && el.getAttribute('data-input');
+  if (kind && isBlocked(s.lock, s.locked, kind)) {
+    render();
+    return;
+  }
   if (kind === 'climate-target') render();
   if (kind === 'config-import') importConfig(el.files && el.files[0]);
   if (!inputs[kind]) return;
@@ -465,11 +662,32 @@ root.addEventListener('change', (event) => {
   render();
 });
 
+// Hold to unlock, by touch, mouse or keyboard. Letting go early cancels it.
+const holdButton = (event) => (event.target.closest ? event.target.closest('[data-hold="unlock"]') : null);
+root.addEventListener('pointerdown', (event) => {
+  const button = holdButton(event);
+  if (button) startHold(button);
+});
+['pointerup', 'pointercancel', 'pointerout'].forEach((type) => root.addEventListener(type, (event) => {
+  if (holdTimer && (type !== 'pointerout' || holdButton(event))) endHold();
+}));
+root.addEventListener('keyup', endHold);
+document.addEventListener('pointerdown', resetIdle, true);
+
 document.addEventListener('keydown', (event) => {
+  resetIdle();
   const open = sheetKey();
+  if ((event.key === 'Enter' || event.key === ' ') && !event.repeat && holdButton(event)) startHold(holdButton(event));
+  if (s.pinPad && /^\d$/.test(event.key)) {
+    if (actions['pin-digit'](event.key) !== false) render();
+    return;
+  }
   if (event.key === 'Escape') {
     if (s.menu) {
       s.menu = null;
+      render();
+    } else if (s.pinPad) {
+      actions['pin-cancel']();
       render();
     } else if (open) {
       actions['close-sheet']();
@@ -522,3 +740,4 @@ window.addEventListener('resize', () => {
 s.layout = currentLayout();
 route();
 render();
+resetIdle();

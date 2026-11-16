@@ -163,6 +163,20 @@ Additional requirements:
 - Home Assistant is the integration layer: no direct calls to a network controller or Zigbee coordinator.
 - iPad and desktop show the map. iPhone shows a readable device list instead.
 
+### 2.11 Application settings, child lock and build information (added 2026-11-16)
+
+- A gear button in the top bar opens the application settings: child lock, data sources, backup, diagnostics and about.
+- Child lock, because the wall tablet hangs where small children can reach it:
+  - Per device. It is stored on the device and never in the shared configuration, so the wall tablet can be locked while a phone is not.
+  - While locked, looking and switching screens stays possible. Three levels, chosen in the settings: all controls (default), all controls except lights, or settings and editing only. Settings, editing, language and theme are blocked at every level.
+  - Unlocking, chosen in the settings: press and hold the lock for 3 seconds (default), or a 4-digit PIN. Wrong PIN tries are delayed. A PIN method without a PIN falls back to hold.
+  - It locks again after a set time without touch (1, 2, 5 or 10 minutes, default 2) and then returns to the home screen with sheets and edit modes closed. A "lock now" button exists.
+  - A blocked touch says that the dashboard is locked and how to unlock it. Nothing else happens.
+  - Actions the lock does not know are blocked while locked (fail closed).
+  - It is an accident guard, not a security boundary: it runs in the browser. The documentation recommends the tablet's own app pinning (Guided Access) to keep a child inside the dashboard. A read-only device mode enforced by the backend is a possible later hardening.
+- Diagnostics: browser, screen size, layout in use, and a pass or fail for each browser feature the application relies on. Script errors are shown on screen, because a tablet has no console.
+- About: version, the commit it was built from (with a note when the build had uncommitted changes), whether that commit is a tagged release, and the build date. The version is written in one place. The values are recorded when the image is built; a copy served from a checkout reads them from git.
+
 ## 3. Proposed technical approach
 
 Validate this proposal against the architecture diagram and older-device compatibility before selecting final technologies.
@@ -284,6 +298,15 @@ Planning/discovery only. This phase does not authorize implementation or live-sy
 - [ ] Room editor: link synthetic areas to a room (several per room), list the discovered entities, include and exclude entities, show a missing-area warning.
 - [ ] Optional EV charging card with mock data, off by default, with entity pickers over synthetic entities and per-statistic visibility.
 - [ ] Network views All, UniFi and Zigbee with mock devices, and settings to switch each source on or off (both, one, neither).
+
+### 5.8 Wall tablet readiness (added 2026-11-16)
+
+- [x] Application settings behind a gear button, replacing the separate data sources sheet.
+- [x] Child lock as in 2.11, per device. (Unit tests and browser check; not yet on the real tablet.)
+- [x] About with version and commit, diagnostics, and an on-screen error display.
+- [x] A test server for the internal network (`scripts/serve.py`) and a device checklist (`docs/device-testing.md`).
+
+Accepted when: with the lock on, no control at the chosen level reacts while every screen can still be viewed; hold and PIN both unlock; the lock returns after the idle time; the lock is not part of the exported configuration; and the about section shows the commit of the build.
 
 ### Phase 1 deliverables
 
@@ -408,6 +431,16 @@ Planning/discovery only. This phase does not authorize implementation or live-sy
 ## 7. Phase 3: Kubernetes/k3s cluster deployment
 
 **Goal:** deploy the approved application in the existing cluster with strict internal HA API access.
+
+### 7.0 Early preview deployment (approved 2026-11-15)
+
+The purpose is testing on the real iPad as early as possible. This is the only approved part of Phase 3.
+
+- Stage 1: the demo (synthetic data, no token), behind the existing identity provider. It also checks that the login works in Safari 15.
+- Stage 2: the live backend with the Home Assistant token as a sealed secret, after Phase 2 works. Not started.
+- Image: built by a manually dispatched workflow in this repository and published to the GitHub container registry.
+- Rollout: a chart in the owner's Helm repository. Nothing changes in the cluster until the owner merges it.
+- Until stage 2, the live application is reachable from the development machine only: without a login in front of it, anyone on the network could control the house.
 
 ### 7.1 Pre-deployment review
 
@@ -577,8 +610,8 @@ Mark a task complete only when acceptance evidence exists. Do not mark work comp
 |---|---|---|
 | Phase 0: Preparation | Done | Stack chosen, repository and privacy baseline in place; see `docs/` |
 | Phase 1: Design/mockup | Done | Merged on 2026-11-15; not yet tested on the real target devices |
-| Phase 2: Local application | Approved, not started | Starts with read-only discovery. Commands to real devices are tested only with the owner present |
-| Phase 3: Cluster deployment | Blocked | Requires explicit Phase 2 approval |
+| Phase 2: Local application | Approved, waiting for the owner's go | The owner put testing on the iPad first (2026-11-16). Starts with read-only discovery; commands to real devices are tested only with the owner present |
+| Phase 3: Cluster deployment | Preview only | The early preview (section 7.0) is approved; everything else is blocked |
 | Privacy baseline | In place | `scripts/privacy-check.mjs` runs in every verify; see `docs/security-and-privacy.md` |
 | Target-device testing | Not started | Emulated viewports only so far; iPad Air 2 and iPhone 13 still to do |
 
@@ -588,7 +621,8 @@ Mark a task complete only when acceptance evidence exists. Do not mark work comp
 |---|---|---|
 | Phase 1 | Start static design/mockup | Yes, 2026-11-15 (request to build the dashboard following this plan; read as Phase 0 and 1 only) |
 | Phase 2 | Start live HA integration/local app | Yes, 2026-11-15 ("proceed with phase 2", given after Phase 1 was merged) |
-| Phase 3 | Start cluster/container/Helm work | No |
+| Early preview | Demo in the cluster for device testing (section 7.0) | Yes, 2026-11-15 ("deploy the early preview version") |
+| Phase 3 | Start cluster/container/Helm work | No, apart from the early preview |
 | Production rollout | Deploy approved cluster changes | No |
 
 ### Progress update template

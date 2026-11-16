@@ -4,6 +4,7 @@ import { energyView } from './energy.js';
 import { networkView } from './network.js';
 import { roomSheet } from './room.js';
 import { roomConfigSheet, settingsSheet } from './editor.js';
+import { pinPad } from './lock.js';
 
 export const VIEWS = { home: homeView, energy: energyView, network: networkView };
 
@@ -11,8 +12,9 @@ export const VIEWS = { home: homeView, energy: energyView, network: networkView 
 export function appView(c) {
   const { s, d } = c;
   let overlay = '';
-  if (s.settings) overlay = settingsSheet(c);
-  else if (s.room && d.rooms[s.room]) overlay = s.roomCfg ? roomConfigSheet(c, s.room) : roomSheet(c, s.room);
+  if (s.pinPad) overlay = pinPad(c);
+  else if (s.settings && !s.locked) overlay = settingsSheet(c);
+  else if (s.room && d.rooms[s.room]) overlay = s.roomCfg && !s.locked ? roomConfigSheet(c, s.room) : roomSheet(c, s.room);
   return shell(c, VIEWS[s.view](c), overlay);
 }
 

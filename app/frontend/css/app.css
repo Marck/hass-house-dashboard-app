@@ -542,6 +542,33 @@ h2 { font-size: 19px; font-weight: 600; }
 .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
 .kicker { font-size: 12.5px; font-weight: 700; letter-spacing: 0.09em; text-transform: uppercase; color: var(--text-2); }
 .mono { font-family: var(--mono); }
+.field-label { margin: 16px 0 8px; font-size: 14px; color: var(--text-2); }
+.kv { display: grid; grid-template-columns: auto 1fr; gap: 6px 16px; font-size: 14px; }
+.kv dt { color: var(--text-3); }
+.kv dd { min-width: 0; overflow-wrap: anywhere; text-align: right; font-weight: 600; }
+.about-line { margin-bottom: 10px; font-size: 17px; }
+.diag-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 6px 16px; margin-top: 14px; padding-top: 14px; border-top: 1px solid var(--line); font-size: 14px; }
+.diag-list li { display: flex; align-items: center; gap: 8px; }
+.diag-list .is-ok .ic { color: var(--teal); }
+.diag-list .is-fail { color: var(--orange); font-weight: 600; }
+
+/* ---------- Child lock ---------- */
+.lock-btn { position: relative; overflow: hidden; min-width: 150px; background: var(--amber-soft); color: var(--amber); box-shadow: 0 0 0 1.5px var(--amber-fill); -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
+.lock-btn > * { pointer-events: none; }
+.hold-fill { position: absolute; left: 0; bottom: 0; width: 0; height: 5px; background: var(--amber); }
+.lock-btn.is-holding .hold-fill { width: 100%; transition: width 3s linear; }
+.pinpad { top: auto; bottom: 0; max-width: 420px; padding: 30px 26px 34px; text-align: center; }
+.pinpad h2 { margin: 6px 56px 0; font-size: 22px; }
+.pin-dots { display: flex; justify-content: center; gap: 14px; margin: 22px 0; }
+.pin-dots i { width: 16px; height: 16px; border-radius: 50%; box-shadow: 0 0 0 2px var(--line-strong) inset; }
+.pin-dots i.is-on { background: var(--text); box-shadow: none; }
+.pin-keys { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+.pin-key { display: flex; align-items: center; justify-content: center; min-height: 64px; border-radius: 20px; background: var(--raised); box-shadow: var(--shadow-sm); font-size: 26px; font-weight: 500; }
+.pin-key.is-plain { background: none; box-shadow: none; color: var(--text-2); }
+
+/* ---------- Script errors, visible on a device without a console ---------- */
+.fatal { display: none; position: fixed; top: 0; left: 0; right: 0; z-index: 100; padding: 12px 16px; background: var(--red); color: var(--bg); font-family: var(--mono); font-size: 14px; overflow-wrap: anywhere; }
+.fatal.is-visible { display: block; }
 .file-btn { cursor: pointer; }
 .file-btn:focus-within { outline: 3px solid var(--focus); outline-offset: 2px; }
 

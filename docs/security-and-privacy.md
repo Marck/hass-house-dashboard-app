@@ -17,6 +17,9 @@ Use synthetic labels and generated ids such as `room_01`, `area_01` and `dev_01`
 - It makes no network requests. The page's Content-Security-Policy sets `connect-src 'none'`, allows scripts and styles from the same origin only, and forbids inline styles and scripts.
 - All data is synthetic and lives in `app/frontend/js/fixtures/synthetic.js`.
 - It stores two things in the browser's `localStorage`: the language and theme preference, and the dashboard configuration. The configuration holds the names you typed and the ids you linked. It stays in that browser and is sent nowhere.
+- It also stores the child lock settings of that device, separately. They are never part of an export. The PIN is kept as a short fingerprint, not as digits.
+- The child lock is an accident guard for a wall tablet, not a security control: it runs in the browser and anyone who can open the browser's settings can remove it. Access control is the job of the login in front of the dashboard (Phase 3).
+- `scripts/serve.py` can make the demo reachable on the internal network for device testing. Never serve a live backend that way.
 - An export is a file with that same configuration. Keep it private.
 - Names you type are escaped on output and capped in length. An imported file is validated as a whole before it replaces anything.
 

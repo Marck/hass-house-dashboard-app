@@ -8,9 +8,10 @@ const ROOT = new URL('..', import.meta.url).pathname;
 const SKIP_DIRS = new Set(['.git', 'node_modules', '.claude', 'dist', 'coverage', '.venv']);
 // Generated or binary files, and this file (it names the patterns it looks for).
 const SKIP_FILES = new Set(['package-lock.json', 'scripts/privacy-check.mjs']);
-const TEXT = /\.(js|mjs|json|css|html|md|yml|yaml|sh|txt|svg)$|^\.[\w.-]+$|^LICENSE$/;
+const TEXT = /\.(js|mjs|json|css|html|md|yml|yaml|sh|py|txt|svg|conf)$|^\.[\w.-]+$|^LICENSE$|^Containerfile$/;
 
-const ALLOWED_ADDRESSES = new Set(['127.0.0.1', '0.0.0.0']);
+// Loopback, "any interface", and the RFC 5737 documentation address the test server uses to pick a route.
+const ALLOWED_ADDRESSES = new Set(['127.0.0.1', '0.0.0.0', '192.0.2.1']);
 const CHECKS = [
   { name: 'IPv4 address', re: /\b(?:\d{1,3}\.){3}\d{1,3}\b/g, allow: (m) => ALLOWED_ADDRESSES.has(m) },
   { name: 'MAC address', re: /\b(?:[0-9a-f]{2}[:-]){5}[0-9a-f]{2}\b/gi },

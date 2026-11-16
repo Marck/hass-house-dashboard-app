@@ -38,10 +38,10 @@ No account, API key or token is needed in Phase 1.
 There is no build step and there are no runtime dependencies. Serve `app/frontend`:
 
 ```bash
-uv run --no-project python -m http.server 4173 --bind 127.0.0.1 --directory app/frontend
+uv run --no-project scripts/serve.py
 ```
 
-Then open <http://localhost:4173>. To try it on a tablet or phone in the same network, replace `127.0.0.1` with the address of your machine and open that address on the device. The demo holds no real data.
+Then open <http://localhost:4173>. The script also prints an address for a tablet or phone on the same network; see [docs/device-testing.md](docs/device-testing.md). Add `--local` to keep it on your own machine. The demo holds no real data.
 
 ## Using the dashboard
 
@@ -52,7 +52,8 @@ Then open <http://localhost:4173>. To try it on a tablet or phone in the same ne
 | Edit layout, left of the language button | Move, remove and restore cards; reset the layout; open the data sources |
 | Edit, in the floor plan card | Add, rename, reorder and remove floors and rooms; move rooms between floors |
 | Room settings, in a room | Name, floor, linked Home Assistant areas, and which entities the room shows |
-| Data sources | Optional EV charging card with an entity per statistic, the UniFi and Zigbee network sources, export and import |
+| Settings, the gear at the top right | Child lock, the optional EV charging card with an entity per statistic, the UniFi and Zigbee network sources, export and import, diagnostics, and the version and commit that is running |
+| Lock, shown while the child lock is on | Press and hold for 3 seconds, or enter the PIN, to unlock |
 
 Rules the UI follows:
 
@@ -61,6 +62,8 @@ Rules the UI follows:
 - All configuration happens in the UI. There is no YAML or file editing. Export and import cover backup and moving to another device.
 
 In Phase 1 the configuration is stored in the browser (`localStorage`), per device.
+
+The child lock is for a wall tablet within reach of small children. It belongs to the device, blocks controls at a level you choose, and locks again by itself. It guards against accidents; it is not a security feature.
 
 ## Verify
 
@@ -103,6 +106,7 @@ New UI text goes into both `js/i18n/en.js` and `js/i18n/nl.js`; a test fails whe
 - [Architecture](docs/architecture.md)
 - [Design system](docs/design-system.md)
 - [Testing](docs/testing.md)
+- [Testing on a real tablet or phone](docs/device-testing.md)
 - [Deployment](docs/deployment.md)
 - [Security and privacy](docs/security-and-privacy.md)
 
