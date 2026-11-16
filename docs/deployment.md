@@ -1,8 +1,27 @@
 # Deployment
 
-**Nothing is deployable yet.** Phase 1 is a static mock. Deployment is Phase 3 and starts only after Phase 2 is approved and done. There is no container image and no Helm chart in this repository so far.
+Only the **early preview** is approved: the demo in the cluster, so the dashboard can be tested on the real tablet. The rest of Phase 3 waits for Phase 2.
 
-To look at the dashboard today, run it locally as described in the [README](../README.md).
+## Early preview
+
+| Part | Where | State |
+|---|---|---|
+| Image | `Containerfile` and `deploy/nginx.conf` here; published by the Image workflow to the GitHub container registry | Builds and runs locally; first publish pending |
+| Chart | The owner's Helm repository | Not written yet |
+| Rollout | A merge there, synced by the cluster's GitOps tooling | Nothing is deployed |
+
+The image holds the static files and the demo data. It has no backend and no token. It runs as a non-root user with a read-only root filesystem; `/tmp` is its only writable path, so the pod needs an `emptyDir` there. It listens on port 8080 and answers `/healthz` for probes. Authentication is not in the image: the ingress sends every request through the identity provider.
+
+To publish: Actions, Image, Run workflow. It builds for amd64 and arm64 and pushes the commit SHA and the channel name as tags. A new package in the registry is private; make it public (the repository is) or give the cluster a pull secret.
+
+Check it locally:
+
+```bash
+podman build -t dashboard:dev .
+podman run --rm --read-only --tmpfs /tmp -p 8080:8080 dashboard:dev
+```
+
+Settings, About in the running dashboard shows the commit the image was built from.
 
 ## Intended design
 
