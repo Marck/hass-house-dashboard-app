@@ -259,6 +259,35 @@ h2 { font-size: 19px; font-weight: 600; }
 .cover .ic { width: 34px; height: 34px; }
 .player { display: flex; align-items: center; gap: 10px; margin-bottom: 14px; color: var(--text-3); }
 .vol { min-width: 26px; text-align: right; font-size: 14px; }
+.track small { display: block; }
+.track > div { min-width: 0; }
+.track-meta { display: flex; align-items: center; gap: 6px; margin-top: 4px; color: var(--text-2); }
+.track-meta .ic { width: 16px; height: 16px; flex: none; }
+.cover.art-b { background: linear-gradient(135deg, var(--blue-fill), var(--teal-fill)); }
+.cover.art-c { background: linear-gradient(135deg, var(--amber-fill), var(--orange-fill)); }
+.cover.is-empty { background: var(--line-strong); color: var(--text-2); }
+.cover.is-small { width: 40px; height: 40px; border-radius: 10px; }
+.cover.is-small .ic { width: 18px; height: 18px; }
+.members { margin: -6px 0 12px; font-size: 13px; color: var(--text-2); }
+.seg-scroll { display: flex; max-width: 100%; margin-bottom: 14px; overflow-x: auto; -webkit-overflow-scrolling: touch; }
+.seg-scroll .seg-item { flex: none; padding: 6px 14px; font-size: 14px; }
+.seg-scroll::-webkit-scrollbar { display: none; }
+.music .player { gap: 8px; }
+.music .range { min-width: 36px; }
+.btn-two { width: 100%; justify-content: flex-start; padding-top: 6px; padding-bottom: 6px; border-radius: 18px; }
+.btn-two > span { display: flex; flex-direction: column; min-width: 0; line-height: 1.25; text-align: left; }
+.btn-two small { overflow: hidden; font-weight: 500; white-space: nowrap; text-overflow: ellipsis; color: var(--text-2); }
+.btn-small { min-height: 40px; padding: 4px 14px; font-size: 13px; }
+.now-list { display: grid; grid-template-columns: minmax(0, 1fr); gap: 6px; margin: 14px 0 0; padding: 0; list-style: none; }
+.now-row { display: flex; align-items: center; gap: 10px; width: 100%; min-height: 52px; padding: 6px 10px; border-radius: 14px; background: var(--tile); text-align: left; }
+.now-row.is-on { background: var(--raised); box-shadow: 0 0 0 1.5px var(--line-strong); }
+.now-main { flex: 1 1 auto; min-width: 0; }
+.now-main b, .now-main small { display: block; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.now-main b span { font-weight: 500; color: var(--text-2); }
+.now-state { display: inline-flex; flex: none; color: var(--text-3); }
+.now-state.is-playing { color: var(--teal); }
+.ed-members { flex: 1 1 100%; }
+.ed-members .field-label { margin-top: 4px; }
 .zone-list { margin: 10px 0 12px; }
 .zone-list li { display: flex; align-items: center; gap: 12px; padding: 4px 0; font-weight: 600; }
 .zone-list li small { margin-left: auto; font-weight: 400; }

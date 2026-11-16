@@ -37,7 +37,8 @@ test('a room shows the entities of its linked areas, directly and through device
   const by = Object.fromEntries(living.list.map((e) => [e.id, e]));
   assert.equal(by.light_01.via, 'device');
   assert.equal(by.door_01.via, 'area');
-  assert.equal(living.list.length, 9);
+  assert.equal(by.media_01.via, 'device', 'a speaker belongs to a room like any other entity');
+  assert.equal(living.list.length, 10);
   assert.equal(living.filtered, 3, 'one diagnostic entity per light is left out');
   assert.ok(!living.list.some((e) => e.kind === 'signal'));
   assert.deepEqual(living.missingAreas, []);

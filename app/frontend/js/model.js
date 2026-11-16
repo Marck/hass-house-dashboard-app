@@ -61,6 +61,7 @@ export function applyConfig(d, cfg) {
         lights: refs('light'),
         switches: refs('switch'),
         climate: refs('climate'),
+        speakers: refs('speaker'),
         door: door ? door.door : undefined,
         motion: motion ? motion.motion : null,
         history: motion ? motion.history : undefined,
@@ -278,9 +279,5 @@ export const commands = {
   },
   toggleZone(d, id) {
     d.irrigation.running = d.irrigation.running === id ? null : id;
-  },
-  setVolume(d, value) {
-    const v = Math.round(Number(value));
-    if (Number.isFinite(v)) d.music.volume = clamp(v, 0, 100);
   },
 };

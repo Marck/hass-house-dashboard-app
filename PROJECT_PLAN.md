@@ -334,13 +334,16 @@ Accepted when: with the lock on, no control at the chosen level reacts while eve
 
 ### 5.9 Music with several speakers (mocked, added 2026-11-16)
 
-- [ ] Music card for no, one and several active speakers, with dynamic tabs.
-- [ ] Compact overview of active speakers and groups.
-- [ ] Synthetic speakers with different capabilities, a permanent group and its members, and an unavailable speaker.
-- [ ] Stop casting for the selected target only.
-- [ ] Temporary grouping sheet with selection per speaker and per room, offered only where the capability exists.
-- [ ] Room names from the existing room configuration.
-- [ ] Settings section for everything in 2.12.
+- [x] Music card for no, one and several active speakers, with dynamic tabs.
+- [x] Compact overview of active speakers and groups.
+- [x] Synthetic speakers with different capabilities, a permanent group and its members, and an unavailable speaker.
+- [x] Stop casting for the selected target only.
+- [x] Temporary grouping sheet with selection per speaker and per room, offered only where the capability exists.
+- [x] Room names from the existing room configuration.
+- [x] Settings section for everything in 2.12.
+- [x] A room that has music playing says so on the floor plan and in the room list.
+
+Mock decisions: group members are chosen in the settings (Home Assistant does not expose them); a temporary group is led by its first speaker and dissolving it stops the others; with multi-speaker support off the card follows the preferred speaker only; the stop button carries the target's name. (Unit tests and browser check; not on real speakers or the real tablet.)
 
 Accepted when: the tabs and the overview follow playback without a reload; a group hides its members only while they play the same thing; stopping or grouping one target leaves the others untouched; a speaker without a capability shows no control for it; and a managed speaker that does not exist is reported.
 

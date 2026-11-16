@@ -18,9 +18,9 @@ export const PIN_WAIT_MS = 30000;
 // locked until someone decides otherwise.
 const KINDS = {
   // Looking around never changes anything.
-  view: ['room', 'close-sheet', 'floor', 'net-tab', 'net-view', 'site', 'device', 'ev-period', 'more', 'details', 'bell', 'flow'],
+  view: ['room', 'close-sheet', 'floor', 'net-tab', 'net-view', 'site', 'device', 'ev-period', 'more', 'details', 'bell', 'flow', 'speaker-tab'],
   light: ['light', 'lights-all', 'power-on'],
-  control: ['climate', 'ac-mode', 'ac-fan', 'ac-preset', 'switch', 'zone', 'music', 'scene', 'climate-target', 'volume'],
+  control: ['climate', 'ac-mode', 'ac-fan', 'ac-preset', 'switch', 'zone', 'music', 'scene', 'climate-target', 'volume', 'music-group', 'music-pick', 'music-pick-room', 'music-group-start', 'music-dissolve'],
   // The way out of the lock.
   unlock: ['unlock', 'pin-digit', 'pin-back', 'pin-cancel'],
 };

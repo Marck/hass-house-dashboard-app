@@ -5,6 +5,7 @@ import { floorplan, roomStatusText } from '../art/floorplan.js';
 import { sunArc } from '../charts.js';
 import { act, seg, live, cardGrid, roomName, roomNameRaw, floorName } from './parts.js';
 import { planEditor } from './editor.js';
+import { musicCard } from './music.js';
 
 function roomList(c, floor) {
   const { d, t, f } = c;
@@ -44,27 +45,6 @@ function lightsCard(c) {
     <div class="btn-row">
       <button type="button" class="btn btn-solid" ${act('scene', 'all-off')}>${icon('power')}<span>${t('home.btn.allOff')}</span></button>
       <button type="button" class="btn btn-gold" ${act('scene', 'evening')}>${icon('sun')}<span>${t('home.btn.evening')}</span></button>
-    </div>
-  </section>`;
-}
-
-function musicCard({ d, t, f }) {
-  const m = d.music;
-  return `<section class="card mini music">
-    <div class="eyebrow"><h2>${icon('speaker')}${t('music.title')}</h2><span>${icon('bolt')}${f.pct(m.battery)}</span></div>
-    <div class="track"><span class="cover">${icon('music')}</span><div><b>${t(m.titleKey)}</b><small>${t(m.artistKey)}</small></div></div>
-    <div class="player">
-      <button type="button" class="icon-btn" aria-label="${t('music.prev')}" ${act('music', 'prev')}>${icon('prev')}</button>
-      <button type="button" class="icon-btn is-primary" aria-label="${t(m.playing ? 'music.pause' : 'music.play')}" aria-pressed="${m.playing}" ${act('music', 'toggle')}>${icon(m.playing ? 'pause' : 'play')}</button>
-      <button type="button" class="icon-btn" aria-label="${t('music.next')}" ${act('music', 'next')}>${icon('next')}</button>
-      ${icon('volume')}
-      <input type="range" class="range" min="0" max="100" step="1" value="${m.volume}" aria-label="${t('music.volume')}" data-input="volume" data-fid="volume">
-      <output class="vol" data-bind="volume">${f.num(m.volume)}</output>
-    </div>
-    <button type="button" class="btn btn-dashed" ${act('music', 'playlist')}>${icon('play')}<span>${t(m.playlistKey)}</span></button>
-    <div class="btn-row">
-      <button type="button" class="btn" ${act('music', 'sound')}><span>${t('music.sound')}</span></button>
-      <button type="button" class="btn${m.loudness ? ' btn-gold' : ''}" aria-pressed="${m.loudness}" ${act('music', 'loudness')}><span>${t(m.loudness ? 'music.loudnessOn' : 'music.loudnessOff')}</span></button>
     </div>
   </section>`;
 }

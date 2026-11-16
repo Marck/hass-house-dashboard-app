@@ -4,6 +4,7 @@ import { createFixture } from './fixtures/synthetic.js';
 import { createI18n, LANGS } from './i18n/index.js';
 import { resolveTheme, MODES, SUN_STATES } from './theme.js';
 import { commands, applyConfig } from './model.js';
+import { musicCommands, groupable, tempGroup } from './music.js';
 import { CARDS, defaultConfig, normalizeConfig, parseConfig, serializeConfig, edit, netViews } from './config.js';
 import { appView, context } from './views/app.js';
 import { climateVisual, climateStatus } from './views/room.js';
@@ -66,6 +67,9 @@ const s = {
   pinPad: false,
   pinEntry: '',
   diag: null, // filled while the settings are open
+  grouping: false, // the sheet for temporary speaker groups
+  musicSel: null, // the speaker or group the music card shows
+  musicPick: [], // speakers ticked in that sheet
 };
 s.locked = s.lock.enabled;
 const d = createFixture();
@@ -107,10 +111,11 @@ function applyStyles(scope) {
 const sheetKey = () => {
   if (s.pinPad) return 'pin';
   if (s.settings) return 'settings';
+  if (s.grouping) return 'speakers';
   return s.room ? `${s.room}${s.roomCfg ? '/config' : ''}` : null;
 };
 // Which control gets the focus back when a sheet closes.
-const OPENERS = { settings: 'settings::', pin: 'unlock::' };
+const OPENERS = { settings: 'settings::', pin: 'unlock::', speakers: 'music-group::' };
 
 /** What the browser on this device can do. Shown in the settings, since a tablet has no console. */
 function diagnostics() {
@@ -192,12 +197,14 @@ function measure() {
 }
 
 function route() {
-  const match = /^#\/(home|energy|network)(?:\/(room_\d+|settings))?(?:\/(config))?$/.exec(window.location.hash);
+  const match = /^#\/(home|energy|network)(?:\/(room_\d+|settings|speakers))?(?:\/(config))?$/.exec(window.location.hash);
   s.view = match ? match[1] : 'home';
   if (s.view === 'network' && !netViews(cfg).length) s.view = 'home'; // no source, no network screen
   const sub = match ? match[2] : null;
   // A locked device shows no settings, whatever the address says.
   s.settings = sub === 'settings' && !s.locked;
+  s.grouping = sub === 'speakers' && s.view === 'home';
+  if (!s.grouping) s.musicPick = [];
   s.room = sub && sub !== 'settings' && s.view === 'home' && d.rooms[sub] ? sub : null;
   s.roomCfg = Boolean(s.room && match[3]) && !s.locked;
   s.diag = s.settings ? diagnostics() : null;
@@ -380,10 +387,56 @@ const actions = {
     s.device = s.device === arg ? null : arg;
   },
   zone: (arg) => commands.toggleZone(d, arg),
-  music(arg) {
-    if (arg === 'toggle') d.music.playing = !d.music.playing;
-    else if (arg === 'loudness') d.music.loudness = !d.music.loudness;
-    else toast('toast.mock');
+  // ----- Music. Every command names its target and reaches nothing else. -----
+  music(arg, id) {
+    const run = { toggle: musicCommands.toggle, stop: musicCommands.stop, loudness: musicCommands.toggleLoudness }[arg];
+    if (!run) toast('toast.mock');
+    else if (!run(d, cfg, id)) toast('toast.speakerFailed');
+    else if (arg === 'stop') toast('toast.castStopped');
+  },
+  'speaker-tab'(id) {
+    s.musicSel = id;
+  },
+  'music-group': () => go('#/home/speakers'),
+  'music-pick'(id) {
+    const at = s.musicPick.indexOf(id);
+    if (at < 0) s.musicPick.push(id);
+    else s.musicPick.splice(at, 1);
+  },
+  /** Tick every speaker of a room that can be grouped, or untick them when all are ticked. */
+  'music-pick-room'(roomId) {
+    const own = groupable(d, cfg).filter((o) => !o.reason && d.rooms[roomId] && d.rooms[roomId].speakers.includes(o.id)).map((o) => o.id);
+    const all = own.every((id) => s.musicPick.includes(id));
+    s.musicPick = s.musicPick.filter((id) => !own.includes(id)).concat(all ? [] : own);
+  },
+  'music-group-start'() {
+    const id = musicCommands.group(d, cfg, s.musicPick);
+    if (!id) {
+      toast('toast.groupFailed');
+      return true;
+    }
+    s.musicSel = id;
+    s.musicPick = [];
+    toast('toast.groupStarted');
+    return go('#/home');
+  },
+  'music-dissolve'(id) {
+    const lead = tempGroup(d, id) ? tempGroup(d, id).members[0] : null;
+    if (!musicCommands.dissolve(d, id)) return;
+    if (s.musicSel === id) s.musicSel = lead;
+    toast('toast.groupDissolved');
+  },
+  'speakers-flag'(flag) {
+    if (edit.toggleMusicFlag(cfg, flag)) commit();
+  },
+  'speakers-show'(key) {
+    if (edit.toggleMusicShow(cfg, key)) commit();
+  },
+  'speakers-use'(id) {
+    if (edit.togglePlayer(cfg, id)) commit();
+  },
+  'speakers-member'(groupId, memberId) {
+    if (edit.toggleGroupMember(cfg, groupId, memberId)) commit();
   },
   scene(arg) {
     if (arg === 'all-off') commands.allLightsOff(d);
@@ -590,6 +643,14 @@ const inputs = {
   'ev-map'(slot, entityId) {
     if (edit.setEvEntity(cfg, slot, entityId)) commit();
   },
+  'speakers-name'(id, value) {
+    const p = d.speakers[id];
+    const builtIn = p && value.trim() === i18n.tx(p.nameKey);
+    if (edit.renamePlayer(cfg, id, builtIn ? '' : value)) commit();
+  },
+  'speakers-preferred'(arg, id) {
+    if (edit.setPreferredPlayer(cfg, id)) commit();
+  },
   'lock-pin'(arg, value) {
     if (!isPin(value)) {
       toast('toast.pinFormat');
@@ -632,9 +693,9 @@ root.addEventListener('input', (event) => {
     return;
   }
   if (kind === 'volume') {
-    commands.setVolume(d, el.value);
+    musicCommands.setVolume(d, cfg, el.getAttribute('data-arg'), el.value);
     const out = root.querySelector('[data-bind="volume"]');
-    if (out) out.textContent = i18n.num(d.music.volume);
+    if (out) out.textContent = i18n.num(Math.round(Number(el.value)));
   }
   if (kind === 'climate-target') {
     const id = el.getAttribute('data-arg');

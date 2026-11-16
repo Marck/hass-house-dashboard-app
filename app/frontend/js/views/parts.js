@@ -1,5 +1,6 @@
 import { esc } from '../util.js';
 import { icon } from '../icons.js';
+import { LABEL_MAX } from '../config.js';
 
 /**
  * Attributes for an interactive element. data-fid is a stable id used to put
@@ -26,6 +27,16 @@ export function select({ label, input, arg = '', options }) {
   const body = options.map((o) => `<option value="${esc(o.value)}"${o.selected ? ' selected' : ''}>${o.label}</option>`).join('');
   return `<select class="select" aria-label="${label}" data-input="${input}"${arg ? ` data-arg="${esc(arg)}"` : ''} data-fid="${input}:${esc(arg)}">${body}</select>`;
 }
+
+/** A committed text field of the editors. */
+export const textInput = (label, input, arg, value) => `<input type="text" class="input" maxlength="${LABEL_MAX}" value="${esc(value)}" aria-label="${label}" data-input="${input}" data-arg="${esc(arg)}" data-fid="${input}:${esc(arg)}" autocomplete="off" autocapitalize="sentences" spellcheck="false">`;
+
+/** A sheet over the page: the room, a settings screen or a picker. */
+export const sheet = (c, head, body) => `<div class="sheet-backdrop" data-action="close-sheet"></div>
+  <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="sheet-title" data-scroll="sheet">
+    <span class="sheet-handle" aria-hidden="true"></span>
+    <button type="button" class="icon-btn sheet-close" aria-label="${c.t('common.close')}" ${act('close-sheet')}>${icon('close')}</button>
+    <header class="sheet-head">${head}</header>${body}</div>`;
 
 export const eyebrow = (left, right = '', ic = '') => `<div class="eyebrow"><h3>${ic ? icon(ic) : ''}${left}</h3>${right ? `<span>${right}</span>` : ''}</div>`;
 
