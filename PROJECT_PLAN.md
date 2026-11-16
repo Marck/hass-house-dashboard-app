@@ -201,6 +201,17 @@ Checked against the Home Assistant source (`cast/media_player.py` and `media_pla
 - A playing Cast group makes its members report the group's media, and Home Assistant does not expose which speakers belong to a group. The dashboard has to learn the membership: chosen by the user in the settings, or inferred by the backend. Decide in Phase 2.
 - For a Cast player `turn_off` quits the casting app, which is what "stop casting" means; `media_stop` only stops the media. Other integrations may differ, so the backend picks the service per player.
 
+### 2.13 First-run setup, sign-in and device pairing (added 2026-11-16)
+
+- A first-run setup walks through: language and theme, the Home Assistant connection, how people sign in, rooms taken from Home Assistant areas, optional features (several speakers, EV charging, network sources) and the child lock. Every step can be skipped; every choice is also in the settings; the setup can be run again from there.
+- When it runs: in Phase 1, on a device with no stored configuration. From Phase 2 the configuration lives in the backend, so the installation is set up once; a new device then gets only the device steps (language, theme, child lock, pairing).
+- Sign-in is enforced by the backend, never by the browser alone. A login screen in the frontend only would protect nothing. Two modes, no password store of our own:
+  - Behind a sign-in proxy: the backend trusts the identity the proxy passes on, and only from that proxy.
+  - Home Assistant account: people sign in at Home Assistant with the account they have.
+- Device pairing for a wall tablet: the tablet shows a short-lived code, a signed-in person approves it on another device, and the tablet gets its own long-lived session that can be revoked. Reason: on 2026-11-16 the identity provider's login page did not render on the iPad Air 2 (Safari 15) and its session ends when the browser closes.
+- No access token is typed into the dashboard during setup. The connection uses the Home Assistant sign-in, or in a cluster the token from a Secret. This keeps the rule that the browser never handles a Home Assistant credential.
+- Not verified: whether Home Assistant's own sign-in page renders on Safari 15. If it does not, pairing is the only way in for that tablet.
+
 ## 3. Proposed technical approach
 
 Validate this proposal against the architecture diagram and older-device compatibility before selecting final technologies.
@@ -347,6 +358,14 @@ Mock decisions: group members are chosen in the settings (Home Assistant does no
 
 Accepted when: the tabs and the overview follow playback without a reload; a group hides its members only while they play the same thing; stopping or grouping one target leaves the others untouched; a speaker without a capability shows no control for it; and a managed speaker that does not exist is reported.
 
+### 5.10 First-run setup (mocked, added 2026-11-16)
+
+- [x] Setup on a clean device, with the six steps of 2.13, skippable, resumable after a reload, and restartable from the settings.
+- [x] Connection, sign-in and pairing steps as designs, each labelled as a demo that connects to nothing and protects nothing.
+- [x] Rooms, optional features and child lock steps change the real configuration.
+
+(Unit tests and browser check; not on the real tablet.)
+
 ### Phase 1 deliverables
 
 - Static mockup/prototype with no live HA calls.
@@ -455,6 +474,16 @@ Not started. Needs the owner's go like the rest of Phase 2.
 - [ ] Controls through media player services, choosing the stop service per player.
 - [ ] Temporary grouping through `join` and `unjoin` where the capability is reported; verify with the owner's real speakers which ones qualify.
 - [ ] Test combinations of single speakers and groups, missing metadata, and speakers that disconnect.
+
+### 6.9 Sign-in, pairing and setup
+
+Not started. Needs the owner's go like the rest of Phase 2.
+
+- [ ] Backend sessions; proxy mode that accepts identity headers from the configured proxy only.
+- [ ] Sign-in with the Home Assistant account. First check that its sign-in page renders on Safari 15.
+- [ ] Device pairing: short-lived code, approval by a signed-in person, long-lived revocable device session, list of paired devices in the settings.
+- [ ] Setup once per installation in the backend; device steps per device.
+- [ ] Threat review of all three before use outside the local network.
 
 ### Phase 2 deliverables
 
