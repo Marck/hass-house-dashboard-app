@@ -27,6 +27,28 @@ The views are string renderers, so the tests render the whole UI in Node.
 | `layout.test.js` | The generated floor plan and the network map never overlap, including 200 random floors |
 | `render.test.js` | No artwork on phones; button positions; "not configured is hidden, missing is an error"; card editing; network sources; typed names are escaped; every action the views emit has a handler |
 | `contrast.test.js` | WCAG AA contrast of text pairs in both themes |
+| `lock.test.js` | Child lock: what each level blocks, unknown actions are blocked, every action the app emits is classified, PIN handling, the locked top bar, the lock is not in the exported configuration; diagnostics; build information |
+
+For checks on a real device, see [device-testing.md](device-testing.md).
+
+## Wall tablet readiness, 2026-11-16
+
+`scripts/verify.sh`: lint clean, 60 of 60 tests pass, privacy check passes.
+
+Checked by hand in the desktop app's built-in browser at 1024 x 768, served by `scripts/serve.py`:
+
+| Check | Result |
+|---|---|
+| Settings opens from the gear; About shows version, commit, "with changes on top" and the build date | Pass |
+| Diagnostics: ten checks, all pass in this browser | Pass |
+| Lock now: back to Home, only the lock in the top bar, a light does not toggle, the settings address is refused | Pass |
+| Hold: released after 1.2 seconds stays locked, held for 3 seconds unlocks | Pass |
+| PIN: two digits refused when setting, the digits are not in storage, a wrong PIN is refused, the right one unlocks | Pass |
+| Automatic lock after the 1 minute setting | Pass |
+| A thrown script error appears as a red bar | Pass |
+| The test server sends `Cache-Control: no-store` and live build information | Pass |
+
+Hold was tested with synthetic pointer events, not with a finger on glass.
 
 ## Phase 1 test report, 2026-11-15
 

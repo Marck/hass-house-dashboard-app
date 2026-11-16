@@ -2,7 +2,8 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { dictionaries, LANGS, missing, createI18n } from '../../app/frontend/js/i18n/index.js';
 import { NET_SOURCES } from '../../app/frontend/js/config.js';
-import { LAYOUTS, setup, render, evConfigured } from './helpers.js';
+import { defaultLock, hashPin } from '../../app/frontend/js/lock.js';
+import { LAYOUTS, DIAG, setup, render, evConfigured } from './helpers.js';
 
 const placeholders = (text) => (text.match(/\{\w+\}/g) || []).sort().join(',');
 
@@ -62,6 +63,11 @@ function states(d) {
     { view: 'network', netView: 'unifi', device: 'dev_07' }, { view: 'network', netView: 'zigbee', device: 'dev_45' }, { view: 'network', device: 'dev_48' },
     ...['day', 'week', 'month'].map((evPeriod) => ({ view: 'energy', evPeriod })),
     { view: 'energy', settings: true }, { view: 'home', settings: true, confirm: 'config' },
+    { view: 'home', settings: true, diag: DIAG, lock: { ...defaultLock(), enabled: true, method: 'pin' } },
+    { view: 'home', settings: true, diag: DIAG, lock: { ...defaultLock(), enabled: true, method: 'pin', pin: hashPin('1234'), scope: 'nolights', idle: 10 } },
+    { view: 'home', locked: true, lock: { ...defaultLock(), enabled: true } },
+    { view: 'network', locked: true, pinPad: true, pinEntry: '12', lock: { ...defaultLock(), enabled: true, method: 'pin', pin: hashPin('1234') } },
+    { view: 'home', room: 'room_01', locked: true, lock: { ...defaultLock(), enabled: true, scope: 'settings' } },
     ...rooms.map((room) => ({ view: 'home', room })),
     ...rooms.map((room) => ({ view: 'home', room, roomCfg: true, confirm: `room:${room}` })),
   ];
