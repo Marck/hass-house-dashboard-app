@@ -4,6 +4,7 @@ import { pts } from '../util.js';
 import { icon } from '../icons.js';
 import { act, roomName, floorNameRaw } from '../views/parts.js';
 import { roomSummary, lightState } from '../model.js';
+import { playingRooms } from '../music.js';
 import { iso, groundEllipse, percent } from './iso.js';
 
 const W = 1000;
@@ -34,6 +35,7 @@ export function roomStatusText(c, id) {
   const parts = [];
   if (room.motion === 'now') parts.push(t('room.motion.now'));
   if (sum.doorOpen) parts.push(t('room.door.open'));
+  if (playingRooms(d, c.cfg).includes(id)) parts.push(t('room.music'));
   if (sum.on) parts.push(tn('room.lightsOn', sum.on));
   if (sum.unavailable) parts.push(tn('room.unreachable', sum.unavailable));
   if (sum.missing) parts.push(tn('room.configWarn', sum.missing));

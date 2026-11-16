@@ -52,7 +52,7 @@ test('every action and input the app emits has been classified on purpose', () =
   const html = [
     { edit: true, planEdit: true, menu: 'lang' }, { menu: 'theme', theme: { mode: 'manual', manual: 'light' } }, { menu: 'theme' },
     { view: 'energy', edit: true }, { view: 'network', edit: true }, { room: 'room_01' }, { room: 'room_02', roomCfg: true },
-    { settings: true, diag: DIAG, lock }, { locked: true, lock }, { locked: true, pinPad: true, lock },
+    { settings: true, diag: DIAG, lock }, { grouping: true }, { locked: true, lock }, { locked: true, pinPad: true, lock },
   ].map((state) => render({ tweak, state })).join('');
   const names = [...new Set((html.match(/data-(?:action|input)="([\w-]+)"/g) || []).map((m) => m.split('"')[1]))];
   // Changing or looking: both are fine, as long as nobody forgot to decide.

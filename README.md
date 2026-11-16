@@ -7,6 +7,7 @@ A custom dashboard for Home Assistant: a whole-home overview with an interactive
 ## Features
 
 - **Home:** people, status chips, a floor plan per floor with lights, motion, doors and warnings, and cards for lights and climate, music, irrigation and the evening.
+- **Music:** one card for every speaker that plays, with tabs, an overview, speaker groups, temporary groups and a stop casting button per target.
 - **Room sheet:** climate with a target temperature for AC and heating, lights, motion history, switches.
 - **Energy:** property overview, battery, daily balance, consumption, and an optional EV charging card.
 - **Network:** a map with All, UniFi and Zigbee views, device details and uplink diagnostics.
@@ -52,7 +53,8 @@ Then open <http://localhost:4173>. The script also prints an address for a table
 | Edit layout, left of the language button | Move, remove and restore cards; reset the layout; open the data sources |
 | Edit, in the floor plan card | Add, rename, reorder and remove floors and rooms; move rooms between floors |
 | Room settings, in a room | Name, floor, linked Home Assistant areas, and which entities the room shows |
-| Settings, the gear at the top right | Child lock, the optional EV charging card with an entity per statistic, the UniFi and Zigbee network sources, export and import, diagnostics, and the version and commit that is running |
+| Settings, the gear at the top right | Child lock, the optional EV charging card with an entity per statistic, the UniFi and Zigbee network sources, which speakers and speaker groups the music card manages, export and import, diagnostics, and the version and commit that is running |
+| Music card | Tabs appear when several speakers play; "Group speakers" makes a temporary group from speakers that support it; "Stop casting" stops the selected speaker or group only |
 | Lock, shown while the child lock is on | Press and hold for 3 seconds, or enter the PIN, to unlock |
 
 Rules the UI follows:
@@ -81,6 +83,7 @@ CI runs the same command on every pull request and on manual dispatch.
 app/frontend/        the dashboard: index.html, css/, js/ (no build step)
   js/fixtures/       synthetic demo data
   js/config.js       the user's configuration and every edit operation
+  js/music.js        speakers, groups, what is playing where, and the commands on one target
   js/model.js        pure helpers between data, configuration and views
   js/views/          one string renderer per screen or sheet
 tests/unit/          unit tests, run with node --test

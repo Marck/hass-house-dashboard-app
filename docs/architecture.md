@@ -27,6 +27,7 @@ A static frontend in `app/frontend`, with no backend and no network calls.
 ```text
 fixtures/synthetic.js   demo data and a stand-in for the area, device and entity registries
 config.js               the user's configuration: floors, rooms, links, card layout, sources
+music.js                speakers and groups: sessions, selection, rooms, commands per target
 model.js                applyConfig() and pure helpers that turn both into what the views show
 views/*.js              string renderers, one per screen or sheet
 main.js                 state, routing, event delegation, storage

@@ -25,6 +25,7 @@ const ICONS = {
   router: '<rect x="7" y="4" width="10" height="16" rx="4"/>' + p('M10.500 9h3'),
   plug: p('M9 3v5M15 3v5M7 8h10v3a5 5 0 0 1-10 0zM12 16v5'),
   speaker: '<rect x="6" y="3" width="12" height="18" rx="2"/><circle cx="12" cy="14" r="3"/>' + p('M12 7v.5'),
+  speakers: '<rect x="2.5" y="6" width="8.5" height="13" rx="1.8"/><rect x="13" y="6" width="8.5" height="13" rx="1.8"/><circle cx="6.75" cy="14" r="1.7"/><circle cx="17.25" cy="14" r="1.7"/>',
   ac: '<rect x="3" y="6" width="18" height="7" rx="2"/>' + p('M7 10h10M8 16v2M12 16v3M16 16v2'),
   fridge: '<rect x="6" y="3" width="12" height="18" rx="2"/>' + p('M6 10h12M9.500 6v2M9.500 13v3'),
   camera: '<rect x="3" y="7" width="13" height="10" rx="2"/>' + p('M16 11l5-3v8l-5-3'),

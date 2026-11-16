@@ -26,6 +26,9 @@ export const EV_ACCEPTS = {
   cost: ['monetary'],
 };
 export const NET_SOURCES = ['unifi', 'zigbee'];
+/** Playback details on the music card that can be switched off. */
+export const MUSIC_SHOW = ['artwork', 'artist', 'room'];
+export const MUSIC_FLAGS = ['multi', 'overview'];
 
 // Shaped like Home Assistant ids: "area_id" or "domain.object_id".
 const ID = /^[a-z0-9_]{1,60}(\.[a-z0-9_]{1,60})?$/;
@@ -54,7 +57,22 @@ export function defaultConfig(d) {
     cards,
     ev: { map: Object.fromEntries(EV_SLOTS.map((slot) => [slot, null])), hide: [] },
     net: { unifi: true, zigbee: true },
+    music: defaultMusic(d),
   };
+}
+
+/**
+ * Every discovered player is managed at first. Home Assistant does not say
+ * which speakers a permanent group contains, so the members are part of the
+ * configuration; the demo fills them in.
+ */
+function defaultMusic(d) {
+  const all = Object.keys(d.speakers);
+  const members = {};
+  all.filter((id) => d.speakers[id].kind === 'group').forEach((id) => {
+    members[id] = [...d.speakers[id].members];
+  });
+  return { multi: true, overview: true, players: all, names: {}, preferred: null, show: [...MUSIC_SHOW], members };
 }
 
 /**
@@ -105,7 +123,32 @@ export function normalizeConfig(raw, d) {
   const rawNet = raw.net && typeof raw.net === 'object' ? raw.net : {};
   const net = { unifi: rawNet.unifi !== false, zigbee: rawNet.zigbee !== false };
 
-  return { version: CONFIG_VERSION, floors, rooms, cards, ev, net };
+  // A configuration saved before the music settings existed keeps the defaults.
+  let music = base.music;
+  if (raw.music && typeof raw.music === 'object') {
+    const m = raw.music;
+    const players = ids(m.players);
+    const names = {};
+    Object.keys(m.names && typeof m.names === 'object' ? m.names : {}).forEach((id) => {
+      const label = cleanLabel(m.names[id]);
+      if (isId(id) && label) names[id] = label;
+    });
+    const members = {};
+    Object.keys(m.members && typeof m.members === 'object' ? m.members : {}).forEach((id) => {
+      if (isId(id)) members[id] = ids(m.members[id]).filter((x) => x !== id);
+    });
+    music = {
+      multi: m.multi !== false,
+      overview: m.overview !== false,
+      players,
+      names,
+      preferred: players.includes(m.preferred) ? m.preferred : null,
+      show: Array.isArray(m.show) ? MUSIC_SHOW.filter((key) => m.show.includes(key)) : base.music.show,
+      members,
+    };
+  }
+
+  return { version: CONFIG_VERSION, floors, rooms, cards, ev, net, music };
 }
 
 /** Parse exported or stored text. Returns null when it is not a configuration at all. */
@@ -268,6 +311,42 @@ export const edit = {
   toggleNetSource(cfg, src) {
     if (!NET_SOURCES.includes(src)) return false;
     cfg.net[src] = !cfg.net[src];
+    return true;
+  },
+  toggleMusicFlag(cfg, flag) {
+    if (!MUSIC_FLAGS.includes(flag)) return false;
+    cfg.music[flag] = !cfg.music[flag];
+    return true;
+  },
+  toggleMusicShow(cfg, key) {
+    if (!MUSIC_SHOW.includes(key)) return false;
+    toggleIn(cfg.music.show, key);
+    return true;
+  },
+  /** Manage a player or stop managing it. Its name and group members are kept for when it comes back. */
+  togglePlayer(cfg, id) {
+    if (!isId(id)) return false;
+    toggleIn(cfg.music.players, id);
+    if (!cfg.music.players.includes(cfg.music.preferred)) cfg.music.preferred = null;
+    return true;
+  },
+  /** An empty name goes back to the name Home Assistant gives the player. */
+  renamePlayer(cfg, id, label) {
+    if (!isId(id)) return false;
+    const clean = cleanLabel(label);
+    if (clean) cfg.music.names[id] = clean;
+    else delete cfg.music.names[id];
+    return true;
+  },
+  setPreferredPlayer(cfg, id) {
+    if (id && !cfg.music.players.includes(id)) return false;
+    cfg.music.preferred = id || null;
+    return true;
+  },
+  toggleGroupMember(cfg, groupId, memberId) {
+    if (!isId(groupId) || !isId(memberId) || groupId === memberId) return false;
+    if (!cfg.music.members[groupId]) cfg.music.members[groupId] = [];
+    toggleIn(cfg.music.members[groupId], memberId);
     return true;
   },
 };

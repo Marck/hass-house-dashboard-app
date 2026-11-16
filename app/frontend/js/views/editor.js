@@ -3,17 +3,16 @@
 import { esc } from '../util.js';
 import { icon } from '../icons.js';
 import { roomEntities, evStats, netModel, netStats } from '../model.js';
-import { LABEL_MAX, EV_SLOTS, EV_ACCEPTS, NET_SOURCES, hiddenCards, netSources } from '../config.js';
+import { EV_SLOTS, EV_ACCEPTS, NET_SOURCES, hiddenCards, netSources } from '../config.js';
 import { LOCK_SCOPES, LOCK_METHODS, LOCK_IDLE_MINUTES, PIN_LENGTH } from '../lock.js';
 import { BUILD } from '../build-info.js';
-import { act, toggle, seg, select, eyebrow, roomNameRaw, floorName, floorNameRaw, showId } from './parts.js';
+import { act, toggle, seg, select, eyebrow, sheet, textInput, roomNameRaw, floorName, floorNameRaw, showId } from './parts.js';
+import { musicSettings } from './music.js';
 import { evValueText, SLOT_ICONS } from './ev.js';
 
-const KIND_ICONS = { light: 'bulb', switch: 'power', climate: 'radiator', door: 'door', motion: 'walk', temp: 'gauge' };
+const KIND_ICONS = { speaker: 'speaker', light: 'bulb', switch: 'power', climate: 'radiator', door: 'door', motion: 'walk', temp: 'gauge' };
 
 const iconBtn = (action, arg, val, ic, label, disabled = false) => `<button type="button" class="icon-btn is-small" aria-label="${label}"${disabled ? ' disabled' : ''} ${act(action, arg, val)}>${icon(ic)}</button>`;
-
-const textInput = (label, input, arg, value) => `<input type="text" class="input" maxlength="${LABEL_MAX}" value="${esc(value)}" aria-label="${label}" data-input="${input}" data-arg="${esc(arg)}" data-fid="${input}:${esc(arg)}" autocomplete="off" autocapitalize="sentences" spellcheck="false">`;
 
 const floorOptions = (c, current) => c.d.floors.map((fl) => ({ value: fl.id, label: floorName(c, fl), selected: fl.id === current }));
 
@@ -57,12 +56,6 @@ export function planEditor(c) {
     <button type="button" class="btn btn-dashed" ${act('floor-add')}>${icon('plus')}<span>${t('edit.addFloor')}</span></button></div>`;
 }
 
-const sheet = (c, head, body) => `<div class="sheet-backdrop" data-action="close-sheet"></div>
-  <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="sheet-title" data-scroll="sheet">
-    <span class="sheet-handle" aria-hidden="true"></span>
-    <button type="button" class="icon-btn sheet-close" aria-label="${c.t('common.close')}" ${act('close-sheet')}>${icon('close')}</button>
-    <header class="sheet-head">${head}</header>${body}</div>`;
-
 /** A room's own settings: name, floor, linked areas and the entities it shows. */
 export function roomConfigSheet(c, id) {
   const { s, d, cfg, t, tn } = c;
@@ -74,7 +67,7 @@ export function roomConfigSheet(c, id) {
   const areaName = (areaId) => (d.ha.areas[areaId] ? t(d.ha.areas[areaId].nameKey) : showId(areaId));
   const entityName = (entityId) => {
     const e = d.ha.entities[entityId];
-    const own = { light: d.lights, switch: d.switches, climate: d.climate }[e.kind];
+    const own = { light: d.lights, switch: d.switches, climate: d.climate, speaker: d.speakers }[e.kind];
     if (own) return c.tx(own[entityId].nameKey);
     return c.tx(e.kind === 'door' ? e.door.nameKey : `entity.kind.${e.kind}`);
   };
@@ -213,6 +206,7 @@ export function settingsSheet(c) {
       <p class="muted ed-gap">${t('settings.ev.hint')}</p><ul class="ed-list">${slots}</ul></section>
     <section>${eyebrow(t('settings.net'))}<p class="muted">${t('settings.net.hint')}</p><ul class="ed-list">${sourceRows}</ul>
       ${sources.length ? '' : `<p class="menu-note is-warn">${t('settings.net.hidden')}</p>`}</section>
+    ${musicSettings(c)}
     <section>${eyebrow(t('settings.backup'))}<p class="muted">${t('settings.backup.hint')}</p>
       <div class="btn-row"><button type="button" class="btn" ${act('config-export')}><span>${t('settings.backup.export')}</span></button>
         <label class="btn file-btn"><input type="file" class="sr-only" accept="application/json,.json" aria-label="${t('settings.backup.import')}" data-input="config-import" data-fid="config-import:"><span>${t('settings.backup.import')}</span></label>

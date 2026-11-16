@@ -28,8 +28,8 @@ function motionHistory(seed, tail) {
 }
 
 /**
- * Build synthetic area, device and entity registries. Lights, switches and
- * climate units are devices whose entities inherit the device's area; the
+ * Build synthetic area, device and entity registries. Lights, switches,
+ * speakers and climate units are devices whose entities inherit the device's area; the
  * sensors are assigned to their area directly. Every light device also has a
  * diagnostic entity, which the dashboard filters out.
  */
@@ -53,6 +53,7 @@ function buildRegistry(seed) {
     (a.lights || []).forEach((id) => viaDevice(id, 'light'));
     (a.switches || []).forEach((id) => viaDevice(id, 'switch'));
     (a.climate || []).forEach((id) => viaDevice(id, 'climate'));
+    (a.speakers || []).forEach((id) => viaDevice(id, 'speaker'));
     if (a.door) entities[`door_${num}`] = { kind: 'door', area: areaId, door: a.door };
     if (a.history) entities[`motion_${num}`] = { kind: 'motion', area: areaId, motion: a.motion || null, history: a.history };
     if (a.temp !== undefined) entities[`temp_${num}`] = { kind: 'temp', area: areaId, temp: a.temp };
@@ -106,25 +107,26 @@ export function createFixture() {
     ha: buildRegistry({
       area_01: {
         nameKey: 'room.living', temp: 21, motion: 'now', history: motionHistory(11, 2), door: { nameKey: 'door.patio', open: false, battery: 42 },
-        climate: ['climate_01', 'climate_02'], lights: ['light_01', 'light_02', 'light_03'], switches: ['switch_01'],
+        climate: ['climate_01', 'climate_02'], lights: ['light_01', 'light_02', 'light_03'], switches: ['switch_01'], speakers: ['media_01'],
       },
-      area_02: { nameKey: 'room.kitchen', temp: 20, motion: null, history: motionHistory(12, 0), lights: ['light_04', 'light_05'], switches: ['switch_02'] },
-      area_03: { nameKey: 'room.dining', temp: 18, motion: 'now', history: motionHistory(13, 3), door: { nameKey: 'door.side', open: true, battery: 88 }, lights: ['light_06'] },
+      area_02: { nameKey: 'room.kitchen', temp: 20, motion: null, history: motionHistory(12, 0), lights: ['light_04', 'light_05'], switches: ['switch_02'], speakers: ['media_02'] },
+      area_03: { nameKey: 'room.dining', temp: 18, motion: 'now', history: motionHistory(13, 3), door: { nameKey: 'door.side', open: true, battery: 88 }, lights: ['light_06'], speakers: ['media_08'] },
       area_04: { nameKey: 'room.hall', motion: null, history: motionHistory(14, 0), lights: ['light_07'] },
-      area_05: { nameKey: 'room.bath', temp: 19, motion: 'now', history: motionHistory(15, 1), lights: ['light_08'], climate: ['climate_03'] },
+      area_05: { nameKey: 'room.bath', temp: 19, motion: 'now', history: motionHistory(15, 1), lights: ['light_08'], climate: ['climate_03'], speakers: ['media_07'] },
       area_06: { nameKey: 'area.laundry', switches: ['switch_03'] },
-      area_07: { nameKey: 'room.bedroom1', temp: 19, motion: null, history: motionHistory(17, 0), lights: ['light_09', 'light_10'], climate: ['climate_04'] },
+      area_07: { nameKey: 'room.bedroom1', temp: 19, motion: null, history: motionHistory(17, 0), lights: ['light_09', 'light_10'], climate: ['climate_04'], speakers: ['media_03'] },
       area_08: { nameKey: 'room.bedroom2', temp: 19, motion: null, history: motionHistory(18, 0), lights: ['light_11'] },
-      area_09: { nameKey: 'room.office', temp: 20, motion: 'recent', history: motionHistory(19, 0), lights: ['light_12'], switches: ['switch_04'] },
+      area_09: { nameKey: 'room.office', temp: 20, motion: 'recent', history: motionHistory(19, 0), lights: ['light_12'], switches: ['switch_04'], speakers: ['media_04'] },
       area_10: { nameKey: 'room.landing', temp: 20, lights: ['light_13'] },
       area_11: { nameKey: 'room.bath2', temp: 20, motion: null, history: motionHistory(21, 0), lights: ['light_14'] },
-      area_12: { nameKey: 'room.patio', motion: 'recent', history: motionHistory(22, 0), lights: ['light_15', 'light_16'] },
+      area_12: { nameKey: 'room.patio', motion: 'recent', history: motionHistory(22, 0), lights: ['light_15', 'light_16'], speakers: ['media_05'] },
       area_13: { nameKey: 'room.garden', lights: ['light_17'] },
       area_14: { nameKey: 'room.carport', lights: ['light_18'], switches: ['switch_05'] },
       area_15: { nameKey: 'area.meter', lights: ['light_19'] },
       area_16: { nameKey: 'area.attic', temp: 17, lights: ['light_20'] },
       // No area: only reachable by adding the entity to a room by hand.
-      none: { switches: ['switch_06'] },
+      // A permanent speaker group is a media player of its own, without an area.
+      none: { switches: ['switch_06'], speakers: ['media_06'] },
     }),
 
     lights: {
@@ -173,7 +175,21 @@ export function createFixture() {
       },
     },
 
-    music: { titleKey: 'music.track', artistKey: 'music.artist', playlistKey: 'music.playlist', playing: false, volume: 13, loudness: true, battery: 100 },
+    // Media players as Home Assistant would report them. Capabilities differ per
+    // speaker: only some can be grouped from here, and one has sound settings.
+    speakers: {
+      media_01: { kind: 'speaker', nameKey: 'spk.living', state: 'paused', titleKey: 'music.track', artistKey: 'music.artist', art: 'a', volume: 13, battery: 100, loudness: true, playlistKey: 'music.playlist', features: ['play', 'prev', 'next', 'volume', 'stop', 'sound', 'playlist'] },
+      // No artist: some sources report a title only.
+      media_02: { kind: 'speaker', nameKey: 'spk.kitchen', state: 'playing', titleKey: 'music.radio', artistKey: null, art: null, volume: 30, features: ['play', 'volume', 'stop'] },
+      // The next two mirror the group they belong to, as members do while a group plays.
+      media_03: { kind: 'speaker', nameKey: 'spk.bedroom', state: 'playing', titleKey: 'music.track2', artistKey: 'music.artist2', art: 'b', volume: 22, features: ['play', 'prev', 'next', 'volume', 'stop'] },
+      media_04: { kind: 'speaker', nameKey: 'spk.office', state: 'playing', titleKey: 'music.track2', artistKey: 'music.artist2', art: 'b', volume: 18, features: ['play', 'prev', 'next', 'volume', 'stop'] },
+      media_05: { kind: 'speaker', nameKey: 'spk.patio', state: 'unavailable', titleKey: null, artistKey: null, art: null, volume: 0, features: ['play', 'volume', 'stop', 'group'] },
+      media_06: { kind: 'group', nameKey: 'spk.groupUpper', members: ['media_03', 'media_04'], state: 'playing', titleKey: 'music.track2', artistKey: 'music.artist2', art: 'b', volume: 20, features: ['play', 'prev', 'next', 'volume', 'stop'] },
+      media_07: { kind: 'speaker', nameKey: 'spk.bath', state: 'idle', titleKey: 'music.track3', artistKey: 'music.artist3', art: 'c', volume: 25, features: ['play', 'prev', 'next', 'volume', 'stop', 'group'] },
+      media_08: { kind: 'speaker', nameKey: 'spk.dining', state: 'idle', titleKey: 'music.track3', artistKey: 'music.artist3', art: 'c', volume: 28, features: ['play', 'prev', 'next', 'volume', 'stop', 'group'] },
+    },
+    tempGroups: [], // temporary groups made in the dashboard: [{ id, members }]
 
     irrigation: {
       moisture: 19,
