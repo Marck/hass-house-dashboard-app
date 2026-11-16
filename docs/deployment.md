@@ -6,28 +6,35 @@ Only the **early preview** is approved: the demo in the cluster, so the dashboar
 
 | Part | Where | State |
 |---|---|---|
-| Image | `Containerfile` and `deploy/nginx.conf` here; published by the Image workflow to the GitHub container registry | Builds and runs locally; first publish pending |
-| Chart | The owner's Helm repository | Not written yet |
+| Image | `Containerfile` and `deploy/nginx.conf` here; published by the Image workflow to the GitHub container registry | Published 2026-11-16: public, amd64 and arm64 |
+| Chart | `apps/house-dashboard` in the owner's Helm repository | Written, waiting for the owner's merge |
 | Rollout | A merge there, synced by the cluster's GitOps tooling | Nothing is deployed |
 
 The image holds the static files and the demo data. It has no backend and no token. It runs as a non-root user with a read-only root filesystem; `/tmp` is its only writable path, so the pod needs an `emptyDir` there. It listens on port 8080 and answers `/healthz` for probes. Authentication is not in the image: the ingress sends every request through the identity provider.
 
-To publish: Actions, Image, Run workflow. It builds for amd64 and arm64 and pushes the commit SHA and the channel name as tags. A new package in the registry is private; make it public (the repository is) or give the cluster a pull secret.
+The chart runs it in its own namespace: Pod Security `restricted`, inbound from the ingress controller and the uptime monitor only, no egress, the image pinned by digest. Its test boots the pinned image the way the pod runs it.
+
+To publish: Actions, Image, Run workflow. It builds for amd64 and arm64 and pushes the commit SHA and the channel name as tags. The package is public, so the cluster needs no pull secret. A new build is deployed by putting its digest in the chart.
 
 Check it locally:
 
 ```bash
 podman build -t dashboard:dev .
-podman run --rm --read-only --tmpfs /tmp -p 8080:8080 dashboard:dev
 ```
+
+```bash
+podman run --rm --read-only --read-only-tmpfs=false --tmpfs /tmp -p 8080:8080 dashboard:dev
+```
+
+`--read-only-tmpfs=false` matters: without it podman adds writable `/run` and `/var/tmp` of its own, which a pod does not have.
 
 Settings, About in the running dashboard shows the commit the image was built from.
 
 ## Intended design
 
-Decided on 2026-11-15, to be detailed and reviewed before any cluster change:
+For the live backend (stage 2). Decided on 2026-11-15, to be detailed and reviewed before any cluster change:
 
-- A separate Deployment and Service in the Home Assistant namespace, not a sidecar in the Home Assistant pod.
+- A separate Deployment and Service, not a sidecar in the Home Assistant pod. The plan says the Home Assistant namespace; the preview showed that the Helm repository gives every chart its own default-deny namespace, so staying separate with one NetworkPolicy to the Home Assistant API port is the alternative. Open decision for the owner.
 - Non-root, read-only root filesystem, no service account token.
 - Reachable on the local network and through VPN only, behind the existing identity provider with forward auth at the ingress.
 - A NetworkPolicy: only the ingress controller reaches the dashboard, and the dashboard reaches only the Home Assistant API port.
