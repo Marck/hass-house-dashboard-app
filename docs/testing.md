@@ -35,7 +35,7 @@ For checks on a real device, see [device-testing.md](device-testing.md).
 
 `scripts/verify.sh`: lint clean, 75 of 75 tests pass, privacy check passes.
 
-Mock only, on synthetic speakers. Covered by unit tests: a playing group stands for its members unless a member plays something else; tabs and overview appear only with several active targets; stopping or grouping one target changes no other player (checked for every speaker and group); only supported controls are rendered; temporary groups accept only speakers with the grouping capability and never touch a permanent group; rooms come from the existing room configuration; the settings survive export and import; the child lock allows looking and blocks control.
+Mock only, on synthetic speakers. Covered by unit tests: a playing group stands for its members unless a member plays something else; several active targets get tabs or, when chosen in the settings, a list, never both; stopping or grouping one target changes no other player (checked for every speaker and group); only supported controls are rendered; temporary groups accept only speakers with the grouping capability and never touch a permanent group; rooms come from the existing room configuration; the settings survive export and import; the child lock allows looking and blocks control.
 
 Checked in a browser at 1440x1000, 1024x768 dark and 390x844, in English and Dutch: switching tabs, stopping a speaker and a group, the card falling back to one speaker, making and dissolving a temporary group, group volume, the room status on the floor plan, and the settings (rename, unmanage, group members, preferred speaker, hidden artist). No horizontal overflow, no control under 40 px.
 

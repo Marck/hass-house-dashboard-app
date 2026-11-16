@@ -7,7 +7,7 @@ A custom dashboard for Home Assistant: a whole-home overview with an interactive
 ## Features
 
 - **Home:** people, status chips, a floor plan per floor with lights, motion, doors and warnings, and cards for lights and climate, music, irrigation and the evening.
-- **Music:** one card for every speaker that plays, with tabs, an overview, speaker groups, temporary groups and a stop casting button per target.
+- **Music:** one card for every speaker that plays, with tabs or a list, speaker groups, temporary groups and a stop casting button per target.
 - **Room sheet:** climate with a target temperature for AC and heating, lights, motion history, switches.
 - **Energy:** property overview, battery, daily balance, consumption, and an optional EV charging card.
 - **Network:** a map with All, UniFi and Zigbee views, device details and uplink diagnostics.

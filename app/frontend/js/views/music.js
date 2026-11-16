@@ -70,7 +70,7 @@ function controls(c, tg) {
     </div>${stop}${extras}`;
 }
 
-/** Everything that is playing, at a glance. An item opens its controls. */
+/** Everything that is playing, with room and track. Takes the place of the tabs; an item opens its controls. */
 function overview(c, active, current) {
   const { d, cfg, t } = c;
   const rows = active.map((id) => {
@@ -87,7 +87,7 @@ function overview(c, active, current) {
 
 /**
  * One card for however many speakers play: the speaker itself when it is the
- * only one, tabs and an overview when there are several, the default speaker
+ * only one, tabs or a list when there are several, the default speaker
  * when nothing plays. With no speaker configured there is no card.
  */
 export function musicCard(c) {
@@ -102,7 +102,9 @@ export function musicCard(c) {
   let side = '';
   if (many) side = `<span>${tn('music.activeCount', active.length)}</span>`;
   else if (tg && tg.player.battery !== undefined) side = `<span>${icon('bolt')}${f.pct(tg.player.battery)}</span>`;
-  const tabs = many ? seg(t('music.tabs'), active.map((sid) => ({
+  // Tabs or the list pick the target, never both: they would say the same thing twice.
+  const asList = many && cfg.music.overview;
+  const tabs = many && !asList ? seg(t('music.tabs'), active.map((sid) => ({
     label: playerName(c, sid), icon: KIND_ICON[target(d, cfg, sid).kind], on: sid === id, attrs: act('speaker-tab', sid),
   })), 'seg-scroll') : '';
 
@@ -120,7 +122,7 @@ export function musicCard(c) {
 
   return `<section class="card mini music">
     <div class="eyebrow"><h2>${icon('speaker')}${t('music.title')}</h2>${side}</div>
-    ${tabs}${body}${group}${many && cfg.music.overview ? overview(c, active, id) : ''}${errors}
+    ${tabs}${body}${group}${asList ? overview(c, active, id) : ''}${errors}
   </section>`;
 }
 

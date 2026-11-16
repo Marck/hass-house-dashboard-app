@@ -185,7 +185,7 @@ An extension of the existing music card, not a separate music application.
   - Nothing active: the normal idle card, no tabs.
   - One active speaker or group: shown directly, no tabs.
   - Several active: one tab per active speaker or group. Switching tabs never interrupts playback. Tabs follow playback as it starts and stops.
-- A compact overview lists every active speaker and group: name, room, status, title, artist and small artwork where available. An item opens its controls. It complements the tabs and can be switched off.
+- A compact overview lists every active speaker and group: name, room, status, title, artist and small artwork where available. An item opens its controls. It takes the place of the tabs when switched on in the settings; tabs are the default. Decision 2026-11-16, after the owner saw both on one card: they named the same targets twice.
 - Speakers and groups are told apart by icon and text. A member of an active group is not shown as a session of its own while it plays what the group plays.
 - Controls for the selected target: play and pause, previous and next, volume, stop casting, status, title, artist, artwork. Only controls the selected player supports are shown.
 - Stop casting names its target and affects that speaker or group only. An unavailable speaker or a failed call gives a message, never a broken card.

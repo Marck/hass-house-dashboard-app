@@ -32,12 +32,12 @@ test('a playing group stands for its members; a member doing its own thing does 
   members.forEach((m) => assert.ok(sessions(d, cfg).includes(m)));
 });
 
-test('the card has tabs and an overview only while several targets are active', () => {
+test('several active targets get tabs or a list, never both, and one target gets neither', () => {
   const many = render();
   const count = sessions(setup().d, setup().cfg).length;
   assert.ok(count > 1);
   assert.equal(tabs(many), count);
-  assert.match(many, /class="now-list"/);
+  assert.ok(!many.includes('class="now-list"'), 'the list repeats what the tabs already say');
 
   const one = render({ tweak: (cfg, d) => {
     quiet(cfg, d);
@@ -52,9 +52,16 @@ test('the card has tabs and an overview only while several targets are active', 
   assert.match(none, /class="card mini music"/);
   assert.match(none, /Nothing playing/);
 
-  const noOverview = render({ tweak: (cfg) => edit.toggleMusicFlag(cfg, 'overview') });
-  assert.equal(tabs(noOverview), count);
-  assert.ok(!noOverview.includes('class="now-list"'));
+  const asList = render({ tweak: (cfg) => edit.toggleMusicFlag(cfg, 'overview') });
+  assert.equal(tabs(asList), 0);
+  assert.equal((asList.match(/data-action="speaker-tab" data-arg="\w+" data-val="list"/g) || []).length, count, 'one list row per active target');
+
+  const oneListed = render({ tweak: (cfg, d) => {
+    edit.toggleMusicFlag(cfg, 'overview');
+    quiet(cfg, d);
+    d.speakers.media_02.state = 'playing';
+  } });
+  assert.ok(!oneListed.includes('class="now-list"'));
 });
 
 test('with multi-speaker support off only the preferred speaker counts', () => {
@@ -239,6 +246,7 @@ test('the music settings survive export and import, and bad input falls back', (
   assert.deepEqual(bad.show, MUSIC_SHOW.filter((k) => k === 'artist'));
   assert.deepEqual(bad.members, { media_06: ['media_03'] });
   assert.equal(bad.multi, true);
+  assert.equal(bad.overview, false, 'anything but an explicit yes keeps the tabs');
 });
 
 test('a locked tablet can look at other speakers but not control or group them', () => {
@@ -251,9 +259,13 @@ test('a locked tablet can look at other speakers but not control or group them',
 
 test('music screens render in both languages and every layout', () => {
   const grouped = (cfg, d) => musicCommands.group(d, cfg, ['media_07', 'media_08']);
+  const listed = (cfg, d) => {
+    edit.toggleMusicFlag(cfg, 'overview');
+    grouped(cfg, d);
+  };
   LANGS.forEach((lang) => LAYOUTS.forEach((layout) => {
     [{}, { grouping: true }, { settings: true }, { musicSel: 'temp_01' }, { grouping: true, musicPick: ['media_07'] }].forEach((state) => {
-      [undefined, grouped, quiet].forEach((tweak) => {
+      [undefined, grouped, quiet, listed].forEach((tweak) => {
         const html = render({ lang, tweak, state: { ...state, layout } });
         assert.ok(!/\[[a-z]+\.[\w.]+\]|undefined|NaN|\[object/.test(html), `${lang} ${layout} ${JSON.stringify(state)}`);
       });
