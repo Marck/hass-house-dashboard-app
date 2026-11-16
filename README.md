@@ -19,7 +19,7 @@ A custom dashboard for Home Assistant: a whole-home overview with an interactive
 |---|---|---|
 | 1 | Mocked UI on synthetic data | Done |
 | 2 | Live Home Assistant through a small backend, run locally | Approved, next |
-| 3 | Deployment on Kubernetes | Not started, needs Phase 2 |
+| 3 | Deployment on Kubernetes | Early preview of the demo only; the rest needs Phase 2 |
 
 Requirements, decisions and the approval log are in [PROJECT_PLAN.md](PROJECT_PLAN.md).
 
@@ -90,7 +90,7 @@ docs/                architecture, design system, testing, deployment, privacy
 
 ## Deploy on Kubernetes
 
-Not available yet. Deployment is Phase 3 and needs Phase 2 first; the intended design is in [docs/deployment.md](docs/deployment.md).
+Only the early preview exists: the demo as a container image, with a chart in the owner's Helm repository, for testing on the real tablet. The image, how to run it with podman and the intended design for the live version are in [docs/deployment.md](docs/deployment.md).
 
 ## Contributing
 
@@ -109,6 +109,10 @@ New UI text goes into both `js/i18n/en.js` and `js/i18n/nl.js`; a test fails whe
 - [Testing on a real tablet or phone](docs/device-testing.md)
 - [Deployment](docs/deployment.md)
 - [Security and privacy](docs/security-and-privacy.md)
+
+## Credits
+
+The layout and the idea come from the dashboard that Reddit user [Dry_Eggplant6329](https://www.reddit.com/user/Dry_Eggplant6329) ([superlab-by-supbrt](https://github.com/superlab-by-supbrt) on GitHub) presented in [I will present my dashboard](https://www.reddit.com/r/homeassistant/comments/1xkaysg/i_will_present_my_dashboard/) on r/homeassistant. Thank you for the inspiration. This project is an independent implementation: it contains none of that dashboard's code, images or data.
 
 ## Privacy
 
