@@ -441,6 +441,7 @@ The purpose is testing on the real iPad as early as possible. This is the only a
 - Image: built by a manually dispatched workflow in this repository and published to the GitHub container registry.
 - Rollout: a chart in the owner's Helm repository. Nothing changes in the cluster until the owner merges it.
 - Until stage 2, the live application is reachable from the development machine only: without a login in front of it, anyone on the network could control the house.
+- State 2026-11-16: the image is published (public, amd64 and arm64). The stage 1 chart is written and waits for the owner's merge. It uses its own namespace, because the Helm repository gives every chart one default-deny namespace and the demo has nothing to say to Home Assistant. Whether the stage 2 backend moves into the Home Assistant namespace (section 2.6) or stays separate with one NetworkPolicy between the two is an open decision for the owner.
 
 ### 7.1 Pre-deployment review
 
