@@ -72,7 +72,8 @@ function defaultMusic(d) {
   all.filter((id) => d.speakers[id].kind === 'group').forEach((id) => {
     members[id] = [...d.speakers[id].members];
   });
-  return { multi: true, overview: true, players: all, names: {}, preferred: null, show: [...MUSIC_SHOW], members };
+  // Tabs by default; the list replaces them when it is switched on. Never both.
+  return { multi: true, overview: false, players: all, names: {}, preferred: null, show: [...MUSIC_SHOW], members };
 }
 
 /**
@@ -139,7 +140,7 @@ export function normalizeConfig(raw, d) {
     });
     music = {
       multi: m.multi !== false,
-      overview: m.overview !== false,
+      overview: m.overview === true,
       players,
       names,
       preferred: players.includes(m.preferred) ? m.preferred : null,
