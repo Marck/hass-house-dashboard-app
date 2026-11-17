@@ -67,8 +67,8 @@ Not verified yet, and to be checked against the running Home Assistant before de
 Decided on 2026-11-15:
 
 - A separate Deployment in the Home Assistant namespace, not a sidecar. A sidecar shares the pod's network namespace and lifecycle, so it isolates less and restarts Home Assistant on every update.
-- Authentication through the existing identity provider, with forward auth at the ingress.
+- Authentication by the backend: OIDC against the existing identity provider, or a Home Assistant account (decided 2026-11-17, replacing forward auth at the ingress).
 - A NetworkPolicy that lets only the ingress controller reach the dashboard and lets the dashboard reach only the Home Assistant API port. Without it, anything in the cluster could skip the login.
-- The backend ignores and never logs identity headers.
+- The backend trusts no identity header; only its own session cookie counts.
 
 Still to verify in the cluster: NetworkPolicy enforcement, whether Home Assistant uses host networking (policies do not protect such a pod), and that the login page works in Safari 15.

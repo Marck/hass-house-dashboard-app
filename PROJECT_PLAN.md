@@ -752,7 +752,7 @@ Resolve these at the appropriate gate; do not block the planning document on det
 - [x] Confirm approved home layout/floor-plan source. Decision 2026-11-15: no real floor plan; the plan is generated from the rooms the user configures (section 2.7).
 - [ ] Confirm permission and scope for read-only `ha-mcp` discovery.
 - [x] Confirm whether dashboard is a separate in-namespace service or a sidecar. Decision 2026-11-15: separate Deployment in the Home Assistant namespace (section 2.6).
-- [ ] Confirm desired LAN/VPN access enforcement point during Phase 3 review. Direction 2026-11-15: forward auth through the existing identity provider at the ingress.
+- [ ] Confirm desired LAN/VPN access enforcement point during Phase 3 review. Direction 2026-11-15: forward auth at the ingress. Replaced 2026-11-17: OIDC by the backend (or a Home Assistant account), live in the preview.
 - [ ] Confirm minimum browser versions after checking iPad Air 2 installed iOS/Safari version. Assumed Safari 15 (iPadOS 15.8 is the last release for that model); the installed version is not confirmed.
 - [ ] Phase 2: confirm which Zigbee integration is in use and which fields the UniFi and Zigbee integrations expose through Home Assistant.
 - [ ] Phase 2: which of the owner's speakers report the grouping capability, and how group membership is learned (section 2.12).
