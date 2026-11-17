@@ -10,7 +10,7 @@ Only the **early preview** is approved: the demo in the cluster, so the dashboar
 | Chart | `apps/house-dashboard` in the owner's Helm repository | Written, waiting for the owner's merge |
 | Rollout | A merge there, synced by the cluster's GitOps tooling | Nothing is deployed |
 
-The image runs the Node backend (`app/backend`), which serves the frontend and the demo data. In this phase it runs in demo mode only: it has no Home Assistant code and refuses to start when any `HASS_` or `HOME_ASSISTANT_` setting is present. It runs as a non-root user with a read-only root filesystem and writes nothing; the chart's `/tmp` `emptyDir` is harmless and kept. It listens on port 8080 and answers `/healthz` for probes. Authentication is not in the image: the ingress sends every request through the identity provider.
+The image runs the Node backend (`app/backend`), which serves the frontend and the demo data. In this phase it runs in demo mode only: it has no Home Assistant code and refuses to start when any `HASS_` or `HOME_ASSISTANT_` setting is present. It runs as a non-root user with a read-only root filesystem and writes nothing; the chart's `/tmp` `emptyDir` is harmless and kept. It listens on port 8080 and answers `/healthz` for probes. Since 2026-11-17 the preview signs people in itself with OIDC against authentik (`AUTH_MODE=oidc`); there is no forward-auth at the ingress any more. Its only outbound connections are DNS and authentik.
 
 The chart runs it in its own namespace: Pod Security `restricted`, inbound from the ingress controller and the uptime monitor only, no egress, the image pinned by digest. Its test boots the pinned image the way the pod runs it.
 
@@ -53,8 +53,8 @@ For the live backend (stage 2). Decided on 2026-11-15, to be detailed and review
 
 - A separate Deployment and Service, not a sidecar in the Home Assistant pod. The plan says the Home Assistant namespace; the preview showed that the Helm repository gives every chart its own default-deny namespace, so staying separate with one NetworkPolicy to the Home Assistant API port is the alternative. Open decision for the owner.
 - Non-root, read-only root filesystem, no service account token.
-- Reachable on the local network and through VPN only, behind the existing identity provider with forward auth at the ingress.
-- A NetworkPolicy: only the ingress controller reaches the dashboard, and the dashboard reaches only the Home Assistant API port.
+- Reachable on the local network and through VPN only. Sign-in by the backend itself, with OIDC against the existing identity provider (decided 2026-11-17, replacing forward auth).
+- A NetworkPolicy: only the ingress controller reaches the dashboard, and the dashboard reaches only DNS, the identity provider and the Home Assistant API port.
 - The Home Assistant token lives in a Secret that only the backend reads. It is never sent to the browser and never committed.
 - The user's configuration is stored by the backend on a small volume.
 

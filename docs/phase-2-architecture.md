@@ -24,14 +24,14 @@ Status: approved 2026-11-17. The owner gave the go for Phase 2 and decided: OIDC
 | Data | Synthetic, built into the image | Live Home Assistant | Live Home Assistant |
 | Home Assistant credential | None. The build refuses one | Token of a dedicated dev user, local `.env` outside the repo | Token in a sealed Secret |
 | Commands | Simulated | Off by default; a switch, only with the owner present | On, limited by the allow-list (A4) |
-| Sign-in | None (preview sits behind forward-auth) | Local only, or proxy headers from a test proxy | OIDC or Home Assistant account, plus pairing |
+| Sign-in | OIDC by the backend (the preview, since 2026-11-17) | Local only, or proxy headers from a test proxy | OIDC or Home Assistant account, plus pairing |
 | Where | Preview image in the cluster | The developer's machine, loopback only | Cluster |
 
 The mode is fixed at startup and shown under Settings, About. A demo image contains no backend code that could talk to Home Assistant.
 
 ## Authentication
 
-Today the dashboard is behind authentik forward-auth: Traefik asks authentik before every request. That suits a browser, but a tablet with a pairing session would still be stopped at Traefik when its authentik session ends (when Safari closes, by default). Pairing only helps if the dashboard decides who gets in.
+Until 2026-11-17 the dashboard was behind authentik forward-auth: Traefik asked authentik before every request. That suits a browser, but a tablet with a pairing session would still be stopped at Traefik when its authentik session ends (when Safari closes, by default). Pairing only helps if the dashboard decides who gets in.
 
 Proposal:
 
@@ -91,7 +91,7 @@ Safari 15 on iPadOS 15 (iPad Air 2) is a first-class target, then current Safari
 ## Decided by the owner (2026-11-17)
 
 1. Go for Phase 2, starting at step 1.
-2. A5: OIDC instead of forward-auth. The preview keeps forward-auth until the backend's own sign-in (step 2) is in place.
+2. A5: OIDC instead of forward-auth. Live in the preview since 2026-11-17.
 3. A1: Node, not Python.
 4. A7: device sessions of 30 days.
 
