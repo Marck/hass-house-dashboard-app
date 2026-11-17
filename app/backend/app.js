@@ -60,30 +60,35 @@ export function resolvePath(root, urlPath) {
   return file === root || file.startsWith(root + sep) ? file : null;
 }
 
+// Open without a session: the page that offers sign-in or pairing, the pairing
+// page and what they load. None of them holds dashboard data.
+export const PUBLIC_PATHS = new Set(['/welcome.html', '/pair.html', '/js/pair.js', '/css/tokens.css', '/css/pair.css']);
+
 /**
- * `auth` is null (no sign-in: the local demo, or the preview behind forward-auth)
- * or the object from createAuth(). With it, everything but /healthz and the
- * sign-in routes needs a session.
+ * `auth` is null (no sign-in: the local demo) or the object from createAuth().
+ * With it, everything but /healthz, the sign-in routes and PUBLIC_PATHS needs a
+ * person or a paired device.
  */
-export function createHandler({ mode, root, auth = null }) {
+export function createHandler({ mode, root, auth = null, log = console }) {
   // The frontend names its own build (Settings, About); this says what the server runs.
   const info = JSON.stringify({ mode, auth: auth ? 'oidc' : 'none' });
-  return async function handle(req, res) {
+  async function serve(req, res) {
     const url = new URL(req.url, 'http://localhost');
     const { pathname } = url;
     const read = req.method === 'GET' || req.method === 'HEAD';
     if (pathname === '/healthz' && read) return send(res, 200, 'text/plain; charset=utf-8', 'ok\n');
     if (auth && await auth.handle(req, res, url)) return;
-    if (!read) return send(res, 405, 'text/plain; charset=utf-8', 'method not allowed\n', { Allow: 'GET, HEAD' });
-    const who = auth ? auth.session(req) : null;
-    if (auth && !who) {
-      if (pathname.startsWith('/api/')) return send(res, 401, TYPES['.json'], '{"error":"sign in"}');
-      res.writeHead(302, { ...HEADERS, 'Cache-Control': 'no-store', Location: '/auth/login' });
+    const who = auth ? auth.session(req, res) : null;
+    if (auth && !who && !(read && PUBLIC_PATHS.has(pathname))) {
+      if (pathname.startsWith('/api/') || !read) return send(res, 401, TYPES['.json'], '{"error":"sign in"}');
+      res.writeHead(302, { ...HEADERS, 'Cache-Control': 'no-store', Location: '/welcome.html' });
       return res.end();
     }
+    if (who && await auth.handleApi(req, res, url, who)) return;
+    if (!read) return send(res, 405, 'text/plain; charset=utf-8', 'method not allowed\n', { Allow: 'GET, HEAD' });
     if (pathname === '/api/info') return send(res, 200, TYPES['.json'], info);
     if (pathname === '/api/me') {
-      const me = who ? { signedIn: true, via: 'oidc', name: who.name } : { signedIn: false, via: 'none' };
+      const me = who ? { signedIn: true, via: 'oidc', kind: who.kind, name: who.name } : { signedIn: false, via: 'none' };
       return send(res, 200, TYPES['.json'], JSON.stringify(me), { 'Cache-Control': 'no-store' });
     }
     if (pathname.startsWith('/api/')) return send(res, 404, TYPES['.json'], '{"error":"not found"}');
@@ -98,5 +103,15 @@ export function createHandler({ mode, root, auth = null }) {
     });
     if (req.method === 'HEAD') return res.end();
     createReadStream(file).on('error', () => res.destroy()).pipe(res);
+  }
+
+  // One failing request (a full disk, a bug) answers 500 instead of taking the
+  // process down. Only the error's name is logged: messages can carry values.
+  return function handle(req, res) {
+    return serve(req, res).catch((error) => {
+      log.error(`request failed (${error.code || error.name})`);
+      if (!res.headersSent) send(res, 500, 'text/plain; charset=utf-8', 'error\n');
+      else res.destroy();
+    });
   };
 }

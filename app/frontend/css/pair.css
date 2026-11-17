@@ -1,0 +1,62 @@
+/* The sign-in choice and the pairing screen. Only design tokens, nothing of the dashboard. */
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px 16px;
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font);
+}
+
+.card {
+  width: 100%;
+  max-width: 440px;
+  padding: 28px 24px;
+  border-radius: var(--r-card);
+  background: var(--surface);
+  box-shadow: var(--shadow);
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+h1 { margin: 0; font-size: 1.4rem; }
+.muted { margin: 0; color: var(--text-2); line-height: 1.45; }
+
+.btn {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 14px 16px;
+  border: 1px solid var(--line);
+  border-radius: var(--r-tile);
+  background: var(--tile);
+  color: var(--text);
+  font: inherit;
+  text-align: left;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.btn small { color: var(--text-2); }
+.btn.primary { background: var(--solid); color: var(--solid-text); border-color: var(--solid); }
+.btn.primary small { color: inherit; opacity: 0.8; }
+.btn:focus-visible, .link:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+
+.code {
+  margin: 4px 0;
+  font-family: var(--mono);
+  font-size: 2.6rem;
+  letter-spacing: 0.12em;
+  text-align: center;
+}
+
+.link { color: var(--text-2); align-self: center; }
+
+/* .btn sets display, which would otherwise win over the hidden attribute. */
+[hidden] { display: none !important; }

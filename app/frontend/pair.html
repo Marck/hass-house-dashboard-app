@@ -1,0 +1,24 @@
+<!doctype html>
+<html lang="en" data-theme="light">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self'; connect-src 'self'; base-uri 'none'; form-action 'none'">
+  <meta name="referrer" content="no-referrer">
+  <meta name="robots" content="noindex, nofollow">
+  <title>Pair this device</title>
+  <link rel="stylesheet" href="css/tokens.css">
+  <link rel="stylesheet" href="css/pair.css">
+</head>
+<body>
+  <main class="card" data-pair>
+    <h1 data-t="pair">Pair this device</h1>
+    <p class="muted" data-t="steps">On a phone or computer where you are signed in, open Settings, Devices, and enter this code:</p>
+    <p class="code" id="code" aria-live="polite">&nbsp;</p>
+    <p class="muted" id="status" role="status"></p>
+    <button type="button" class="btn" id="again" hidden data-t="again">New code</button>
+    <a class="link" href="/welcome.html" data-t="back">Back</a>
+  </main>
+  <script type="module" src="js/pair.js"></script>
+</body>
+</html>

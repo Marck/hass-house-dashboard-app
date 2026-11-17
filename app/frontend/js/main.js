@@ -75,6 +75,8 @@ const s = {
   onboard: null, // the first-run setup while it is open
   access: normalizeAccess((loadJson(SETUP_KEY) || {}).access), // connection and sign-in choices (designs)
   me: null, // who is signed in, from the backend; null without one
+  devices: null, // paired devices, for a signed-in person
+  pairForm: { code: '', name: '' },
 };
 s.locked = s.lock.enabled;
 const d = createFixture();
@@ -653,6 +655,41 @@ const actions = {
       .catch(() => toast('toast.signOutFailed'));
     return false;
   },
+  'device-approve'() {
+    const code = s.pairForm.code.trim();
+    const name = s.pairForm.name.trim();
+    if (!code || !name) {
+      toast('toast.pairMissing');
+      return false;
+    }
+    // The code proves you are at the tablet; this is the last look at what is let in.
+    if (!window.confirm(i18n.tx('devices.confirm', { name }))) return false;
+    window.fetch('/api/devices/approve', {
+      method: 'POST', credentials: 'same-origin', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ code, name }),
+    }).then((res) => {
+      if (res.ok) {
+        s.pairForm = { code: '', name: '' };
+        toast('toast.paired', { name });
+        // The tablet collects its session on its next poll, a few seconds later.
+        window.setTimeout(loadDevices, 4000);
+        render();
+      } else {
+        toast(res.status === 404 ? 'toast.pairWrongCode' : res.status === 429 ? 'toast.pairTooMany' : 'toast.pairFailed');
+      }
+    }).catch(() => toast('toast.pairFailed'));
+    return false;
+  },
+  'device-revoke'(id) {
+    const device = (s.devices || []).find((d) => d.id === id);
+    if (!device || !window.confirm(i18n.tx('devices.confirmRemove', { name: device.name }))) return false;
+    window.fetch(`/api/devices/${encodeURIComponent(id)}`, { method: 'DELETE', credentials: 'same-origin' })
+      .then((res) => {
+        toast(res.ok ? 'toast.deviceRemoved' : 'toast.pairFailed', { name: device.name });
+        loadDevices();
+      })
+      .catch(() => toast('toast.pairFailed'));
+    return false;
+  },
   'access-pair'() {
     s.access.paired = true;
     saveSetup();
@@ -750,9 +787,17 @@ root.addEventListener('click', (event) => {
 });
 
 // Range inputs update only the parts that change, so a drag is never interrupted.
+// The pairing fields are kept as they are typed and never re-rendered on their
+// own: a render on blur would move the focus while the next field is typed in.
+const PAIR_FIELDS = { 'pair-code': 'code', 'pair-name': 'name' };
+
 root.addEventListener('input', (event) => {
   const el = event.target;
   const kind = el.getAttribute && el.getAttribute('data-input');
+  if (PAIR_FIELDS[kind]) {
+    s.pairForm[PAIR_FIELDS[kind]] = el.value;
+    return;
+  }
   if (kind && isBlocked(s.lock, s.locked, kind)) {
     render(); // puts the slider back where it was
     lockedHint();
@@ -784,6 +829,7 @@ root.addEventListener('change', (event) => {
   }
   if (kind === 'climate-target') render();
   if (kind === 'config-import') importConfig(el.files && el.files[0]);
+  if (PAIR_FIELDS[kind]) return;
   if (!inputs[kind]) return;
   // Putting the focus back on a select after a render makes iOS open its picker
   // again. A select gives up the focus once it has changed.
@@ -872,11 +918,24 @@ route();
 render();
 resetIdle();
 
+/** The paired devices, for the settings. Only a signed-in person may list them. */
+function loadDevices() {
+  window.fetch('/api/devices', { credentials: 'same-origin', cache: 'no-store' })
+    .then((res) => (res.ok ? res.json() : null))
+    .then((body) => {
+      if (!body) return;
+      s.devices = Array.isArray(body.devices) ? body.devices : [];
+      render();
+    })
+    .catch(() => {});
+}
+
 window.fetch('/api/me', { credentials: 'same-origin' })
   .then((res) => (res.ok ? res.json() : null))
   .then((me) => {
     if (!me || !me.signedIn) return;
-    s.me = { signedIn: true, name: String(me.name || '') };
+    s.me = { signedIn: true, kind: me.kind === 'device' ? 'device' : 'person', name: String(me.name || '') };
     render();
+    if (s.me.kind === 'person') loadDevices();
   })
   .catch(() => {});
