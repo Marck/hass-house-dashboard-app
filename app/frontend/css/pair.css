@@ -1,9 +1,12 @@
 /* The sign-in choice and the pairing screen. Only design tokens, nothing of the dashboard. */
 * { box-sizing: border-box; }
+html { height: 100%; }
 
 body {
   margin: 0;
-  min-height: 100vh;
+  /* Not 100vh: on phones that is taller than the visible screen (the browser
+     bars), which made the page scroll. 100% of html is the visible height. */
+  min-height: 100%;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -57,6 +60,23 @@ h1 { margin: 0; font-size: 1.4rem; }
 }
 
 .link { color: var(--text-2); align-self: center; }
+
+/* The language switch, top right of the card. */
+.langs { align-self: flex-end; display: flex; gap: 4px; margin-bottom: -6px; }
+.langs button {
+  min-width: 44px;
+  min-height: 36px;
+  padding: 4px 10px;
+  border: 1px solid var(--line);
+  border-radius: var(--r-tile);
+  background: transparent;
+  color: var(--text-2);
+  font: inherit;
+  font-size: 0.85rem;
+  cursor: pointer;
+}
+.langs button[aria-pressed="true"] { background: var(--solid); color: var(--solid-text); border-color: var(--solid); }
+.langs button:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
 
 /* .btn sets display, which would otherwise win over the hidden attribute. */
 [hidden] { display: none !important; }
