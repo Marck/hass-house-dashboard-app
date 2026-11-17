@@ -1,6 +1,6 @@
-// The two pages a visitor sees before signing in: the choice between signing in
-// and pairing (welcome.html), and the pairing screen of a wall tablet
-// (pair.html). Standalone: it loads nothing from the dashboard, which needs a
+// The pages a visitor sees before signing in: the choice between signing in
+// and pairing (welcome.html), the pairing screen of a wall tablet (pair.html)
+// and the signed-out and sign-in-failed notices (served by auth.js). Standalone: it loads nothing from the dashboard, which needs a
 // session. The language is shared with the dashboard through its stored
 // preferences, so a choice made here is kept after signing in, and back.
 
@@ -15,6 +15,9 @@ export const TEXT = {
     expired: 'The code has expired.', again: 'New code', back: 'Back',
     failed: 'No code could be made. Check the connection and try again.', done: 'Approved. Opening the dashboard…',
     language: 'Language',
+    signedOutTitle: 'Signed out', signedOutBody: 'You are signed out of the dashboard.',
+    failedTitle: 'Sign-in failed', failedBody: 'The sign-in did not complete. Please try again.',
+    signInAgain: 'Sign in',
   },
   nl: {
     title: 'Thuisdashboard', choose: 'Hoe wil je inloggen?',
@@ -26,6 +29,9 @@ export const TEXT = {
     expired: 'De code is verlopen.', again: 'Nieuwe code', back: 'Terug',
     failed: 'Er kon geen code worden gemaakt. Controleer de verbinding en probeer het opnieuw.', done: 'Goedgekeurd. Het dashboard wordt geopend…',
     language: 'Taal',
+    signedOutTitle: 'Uitgelogd', signedOutBody: 'Je bent uitgelogd van het dashboard.',
+    failedTitle: 'Inloggen mislukt', failedBody: 'Het inloggen is niet gelukt. Probeer het opnieuw.',
+    signInAgain: 'Inloggen',
   },
 };
 
@@ -73,7 +79,7 @@ if (typeof document !== 'undefined') {
     document.querySelectorAll('[data-t]').forEach((el) => { el.textContent = t(el.dataset.t); });
     document.querySelectorAll('[data-lang]').forEach((el) => el.setAttribute('aria-pressed', String(el.dataset.lang === lang)));
     $('langs').setAttribute('aria-label', t('language'));
-    document.title = t(pairing ? 'pair' : 'title');
+    document.title = t(document.querySelector('h1[data-t]').dataset.t);
     if (pairing) $('status').textContent = status();
   };
 

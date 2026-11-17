@@ -206,6 +206,19 @@ test('logout ends the session; a cross-site logout is refused', async () => {
   assert.equal((await call('/auth/signed-out')).status, 200);
 });
 
+test('the notice pages are styled, translatable and load only this site', async () => {
+  for (const [path, status, title] of [['/auth/signed-out', 200, 'Signed out'], ['/auth/callback?code=x&state=y', 400, 'Sign-in failed']]) {
+    const res = await call(path);
+    assert.equal(res.status, status, path);
+    const csp = res.headers['content-security-policy'];
+    assert.match(csp, /script-src 'self'/);
+    assert.doesNotMatch(csp, /unsafe|\*/);
+    const page = res.body;
+    assert.match(page, new RegExp(`<h1 data-t="\\w+">${title}</h1>`));
+    for (const asset of ['/css/pair.css', '/js/pair.js']) assert.ok(page.includes(asset), `${path} loads ${asset}`);
+  }
+});
+
 test('unfinished logins are capped, the oldest goes first', async () => {
   const first = await startLogin();
   for (let i = 0; i < 200; i += 1) await call('/auth/login');
