@@ -30,6 +30,23 @@ podman run --rm --read-only --read-only-tmpfs=false --user 101:101 -p 8080:8080 
 
 Settings, About in the running dashboard shows the commit the image was built from.
 
+### Configuration
+
+| Variable | Default | Meaning |
+|---|---|---|
+| `PORT` | `8080` | Listening port |
+| `DASHBOARD_MODE` | `demo` | Only `demo` exists so far |
+| `AUTH_MODE` | `none` | `oidc` turns on the backend's own sign-in; everything but `/healthz` then needs a session |
+| `OIDC_ISSUER` | | Issuer URL of the identity provider, https only. For authentik: `https://<authentik host>/application/o/<slug>/` |
+| `OIDC_CLIENT_ID` | | Client id of the provider |
+| `OIDC_CLIENT_SECRET` | | Client secret; from a Secret, never in values |
+| `PUBLIC_URL` | | The dashboard's own https URL; the redirect URI is `PUBLIC_URL/auth/callback` |
+| `SESSION_HOURS` | `12` | Length of a person session |
+
+Any variable starting with `HASS_` or `HOME_ASSISTANT_` stops the demo from starting.
+
+In authentik, create an OAuth2/OpenID provider (confidential client, authorization code, redirect URI as above, scopes `openid profile`) and an application bound to the group that may use the dashboard. The pod needs egress to the identity provider.
+
 ## Intended design
 
 For the live backend (stage 2). Decided on 2026-11-15, to be detailed and reviewed before any cluster change:

@@ -50,7 +50,7 @@ test('every step renders in both languages and layouts, with its own controls', 
     lock: ['data-action="lock-toggle"'],
   };
   LANGS.forEach((lang) => LAYOUTS.forEach((layout) => ONBOARD_STEPS.forEach((step) => {
-    [{}, { connected: true, paired: true, signin: 'proxy', skipRooms: ['room_01'] }].forEach((extra) => {
+    [{}, { connected: true, paired: true, signin: 'oidc', skipRooms: ['room_01'] }].forEach((extra) => {
       const html = render({ lang, state: { ...at(step, extra), layout } });
       assert.ok(!/\[[a-z]+\.[\w.]+\]|undefined|NaN|\[object/.test(html), `${lang} ${layout} ${step}`);
       assert.match(html, /class="sheet onboard"/);
@@ -100,6 +100,6 @@ test('everything the setup offers is in the settings, and nothing there restarts
 test('the connection and sign-in choices are validated when read back', () => {
   assert.deepEqual(normalizeAccess(null), defaultAccess());
   assert.deepEqual(normalizeAccess({ connected: 'yes', signin: 'magic', paired: 1 }), defaultAccess());
-  const stored = { connected: true, signin: 'proxy', paired: true };
+  const stored = { connected: true, signin: 'oidc', paired: true };
   assert.deepEqual(normalizeAccess(stored), stored);
 });

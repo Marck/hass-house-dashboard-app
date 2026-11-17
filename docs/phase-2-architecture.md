@@ -1,6 +1,6 @@
 # Phase 2 architecture and breakdown
 
-Status: approved 2026-11-17. The owner gave the go for Phase 2 and decided: OIDC sign-in (A5), a Node backend (A1), device sessions of 30 days (A7). Step 1 is built.
+Status: approved 2026-11-17. The owner gave the go for Phase 2 and decided: OIDC sign-in (A5), a Node backend (A1), device sessions of 30 days (A7), and the Home Assistant account as the local sign-in instead of the dashboard's own accounts (A6). Steps 1 and 2 are built.
 
 ## Decisions
 
@@ -58,7 +58,7 @@ The backend never takes a URL from a request to connect to. It has no proxy endp
 Each step is one or a few small pull requests, merged only with green checks, and ends with something the owner can try.
 
 1. **Backend skeleton** (done): serves the frontend with the same headers nginx did, `/healthz`, `/api/info`, the mode fixed at startup (demo only; it refuses to start with any Home Assistant setting). It replaces nginx in the image. The configuration store moved to step 5, where it is first used.
-2. **Sign-in and sessions:** OIDC, person sessions, logout, tests for every refusal. Still demo data.
+2. **Sign-in and sessions** (done): OIDC with PKCE, state and nonce (`oauth4webapi`, no further dependencies); person sessions of 12 hours kept in memory, so a restart signs people out until pairing (step 3) brings a store; logout; tests against a fake identity provider for every refusal. Still demo data.
 3. **Pairing:** codes, approval, device sessions, revocation, device list. Safari 15 cookie test on the tablet.
 4. **Home Assistant connection, read-only:** token from the environment, WebSocket connect and reconnect, registry discovery (areas, devices, entities). Nothing can be commanded.
 5. **Configuration in the backend:** a JSON store with atomic replace (A10), room-to-area links, entity rules, export and import, migration from the browser-stored configuration, first-run setup once per installation.

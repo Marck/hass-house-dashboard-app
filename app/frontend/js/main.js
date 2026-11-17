@@ -74,6 +74,7 @@ const s = {
   musicPick: [], // speakers ticked in that sheet
   onboard: null, // the first-run setup while it is open
   access: normalizeAccess((loadJson(SETUP_KEY) || {}).access), // connection and sign-in choices (designs)
+  me: null, // who is signed in, from the backend; null without one
 };
 s.locked = s.lock.enabled;
 const d = createFixture();
@@ -645,6 +646,13 @@ const actions = {
     s.access.signin = mode;
     saveSetup();
   },
+  'sign-out'() {
+    // The backend ends the session; the page it sends to has no dashboard data.
+    window.fetch('/auth/logout', { method: 'POST', credentials: 'same-origin' })
+      .then(() => window.location.assign('/auth/signed-out'))
+      .catch(() => toast('toast.signOutFailed'));
+    return false;
+  },
   'access-pair'() {
     s.access.paired = true;
     saveSetup();
@@ -863,3 +871,12 @@ s.layout = currentLayout();
 route();
 render();
 resetIdle();
+
+window.fetch('/api/me', { credentials: 'same-origin' })
+  .then((res) => (res.ok ? res.json() : null))
+  .then((me) => {
+    if (!me || !me.signedIn) return;
+    s.me = { signedIn: true, name: String(me.name || '') };
+    render();
+  })
+  .catch(() => {});
