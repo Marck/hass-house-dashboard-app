@@ -5,6 +5,7 @@
 // from the identity provider is kept, logged or sent to the browser.
 import { createHash, randomBytes, randomInt } from 'node:crypto';
 import * as oauth from 'oauth4webapi';
+import { TEXT } from '../frontend/js/pair.js';
 
 const LOGIN_TTL = 10 * 60 * 1000;
 const PAIR_TTL = 5 * 60 * 1000;
@@ -64,9 +65,34 @@ function readJson(req, limit = 2048) {
   });
 }
 
-const PAGE = (title, body) => `<!doctype html><html lang="en"><head><meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1"><title>${title}</title></head>
-<body><main><h1>${title}</h1><p>${body}</p><p><a href="/welcome.html">Sign in</a></p></main></body></html>`;
+// A notice in the style of the welcome page: English here, translated by
+// pair.js. The keys are fixed strings from this file; nothing from the request
+// goes in.
+export const PAGE_CSP = "default-src 'none'; script-src 'self'; style-src 'self'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'";
+const PAGE = (title, body) => `<!doctype html>
+<html lang="en" data-theme="light">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="robots" content="noindex, nofollow">
+  <title>${TEXT.en[title]}</title>
+  <link rel="stylesheet" href="/css/tokens.css">
+  <link rel="stylesheet" href="/css/pair.css">
+</head>
+<body>
+  <main class="card">
+    <div class="langs" id="langs" role="group" aria-label="Language">
+      <button type="button" data-lang="en" aria-pressed="false">EN</button>
+      <button type="button" data-lang="nl" aria-pressed="false">NL</button>
+    </div>
+    <h1 data-t="${title}">${TEXT.en[title]}</h1>
+    <p class="muted" data-t="${body}">${TEXT.en[body]}</p>
+    <a class="btn primary" href="/welcome.html"><b data-t="signInAgain">${TEXT.en.signInAgain}</b></a>
+  </main>
+  <script type="module" src="/js/pair.js"></script>
+</body>
+</html>`;
+const html = { 'Content-Type': 'text/html; charset=utf-8', 'Content-Security-Policy': PAGE_CSP };
 
 /**
  * The sign-in routes, the session check and the device API. `devices` is from
@@ -118,14 +144,13 @@ export function createAuth({ issuer, publicUrl, clientId, clientSecret, devices,
   function send(res, status, headers, body = '') {
     res.writeHead(status, {
       'Cache-Control': 'no-store', 'Referrer-Policy': 'no-referrer', 'X-Content-Type-Options': 'nosniff',
-      // These pages have no script, style or image: nothing may load.
+      // Nothing may load, except where a notice page sets its own policy.
       'Content-Security-Policy': "default-src 'none'; frame-ancestors 'none'", ...headers,
     });
     res.end(body);
   }
   const json = (res, status, value, headers = {}) => send(res, status, { 'Content-Type': 'application/json; charset=utf-8', ...headers }, JSON.stringify(value));
-  const fail = (res, status = 400) => send(res, status, { 'Content-Type': 'text/html; charset=utf-8' },
-    PAGE('Sign-in failed', 'The sign-in did not complete. Please try again.'));
+  const fail = (res, status = 400) => send(res, status, html, PAGE('failedTitle', 'failedBody'));
   // A state-changing request from another site is refused. SameSite=Lax already
   // keeps the cookies off it; this also covers requests that carry none.
   const foreign = (req) => Boolean(req.headers.origin) && req.headers.origin !== publicUrl.origin;
@@ -242,7 +267,7 @@ export function createAuth({ issuer, publicUrl, clientId, clientSecret, devices,
     if (route === 'POST /auth/pair/start') return pairStart(req, res), true;
     if (route === 'GET /auth/pair/poll') return pairPoll(req, res), true;
     if (route === 'GET /auth/signed-out') {
-      return send(res, 200, { 'Content-Type': 'text/html; charset=utf-8' }, PAGE('Signed out', 'You are signed out of the dashboard.')), true;
+      return send(res, 200, html, PAGE('signedOutTitle', 'signedOutBody')), true;
     }
     if (url.pathname.startsWith('/auth/')) return send(res, 404, { 'Content-Type': 'text/plain; charset=utf-8' }, 'not found\n'), true;
     return false;
