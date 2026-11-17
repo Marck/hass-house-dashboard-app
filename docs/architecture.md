@@ -22,7 +22,7 @@ Home Assistant integrations        Zigbee, Shelly, ESPHome, Wi-Fi, solar, UniFi
 
 ## Phase 1: what exists today
 
-A static frontend in `app/frontend`, with no backend and no network calls.
+A static frontend in `app/frontend`, with no network calls. Since Phase 2 step 1 it is served by the Node backend in `app/backend` (demo mode: files, `/healthz`, `/api/info`, nothing else).
 
 ```text
 fixtures/synthetic.js   demo data and a stand-in for the area, device and entity registries
