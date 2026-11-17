@@ -4,6 +4,7 @@
 import { createReadStream } from 'node:fs';
 import { stat } from 'node:fs/promises';
 import { extname, join, resolve, sep } from 'node:path';
+import { NOTICE_CSP, notice } from './notice.js';
 
 export const MODES = ['demo'];
 
@@ -46,6 +47,10 @@ function send(res, status, type, body, extra = {}) {
   res.writeHead(status, { ...HEADERS, 'Content-Type': type, 'Content-Length': Buffer.byteLength(body), ...extra });
   res.end(res.req.method === 'HEAD' ? undefined : body);
 }
+
+// A page a browser may land on is styled like the rest of the site.
+const page = (res, status, title, body) => send(res, status, TYPES['.html'], notice(title, body, { link: 'toDashboard', href: '/' }),
+  { 'Content-Security-Policy': NOTICE_CSP, 'Cache-Control': 'no-store' });
 
 /** The file a URL path names inside root, or null when it would leave root. */
 export function resolvePath(root, urlPath) {
@@ -95,7 +100,7 @@ export function createHandler({ mode, root, auth = null, log = console }) {
 
     const file = resolvePath(root, pathname);
     const found = file && await stat(file).catch(() => null);
-    if (!found || !found.isFile()) return send(res, 404, 'text/plain; charset=utf-8', 'not found\n');
+    if (!found || !found.isFile()) return page(res, 404, 'notFoundTitle', 'notFoundBody');
     res.writeHead(200, {
       ...HEADERS,
       'Content-Type': TYPES[extname(file)] || 'application/octet-stream',
@@ -110,8 +115,9 @@ export function createHandler({ mode, root, auth = null, log = console }) {
   return function handle(req, res) {
     return serve(req, res).catch((error) => {
       log.error(`request failed (${error.code || error.name})`);
-      if (!res.headersSent) send(res, 500, 'text/plain; charset=utf-8', 'error\n');
-      else res.destroy();
+      if (res.headersSent) return res.destroy();
+      if (req.url.startsWith('/api/')) return send(res, 500, TYPES['.json'], '{"error":"error"}');
+      return page(res, 500, 'errorTitle', 'errorBody');
     });
   };
 }

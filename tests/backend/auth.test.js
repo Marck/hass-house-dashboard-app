@@ -207,7 +207,7 @@ test('logout ends the session; a cross-site logout is refused', async () => {
 });
 
 test('the notice pages are styled, translatable and load only this site', async () => {
-  for (const [path, status, title] of [['/auth/signed-out', 200, 'Signed out'], ['/auth/callback?code=x&state=y', 400, 'Sign-in failed']]) {
+  for (const [path, status, title] of [['/auth/signed-out', 200, 'Signed out'], ['/auth/callback?code=x&state=y', 400, 'Sign-in failed'], ['/auth/nothing', 404, 'Page not found']]) {
     const res = await call(path);
     assert.equal(res.status, status, path);
     const csp = res.headers['content-security-policy'];
@@ -347,8 +347,17 @@ test('a request that fails answers 500 and the server keeps running', async () =
   const handler = createHandler({ mode: 'demo', root: site, auth: broken, log: { error: (m) => logged.push(m) } });
   const other = createServer(handler);
   await new Promise((done) => other.listen(0, '127.0.0.1', done));
-  const status = await new Promise((done) => request({ host: '127.0.0.1', port: other.address().port, path: '/' }, (res) => { res.resume(); done(res.statusCode); }).end());
+  const fetchOne = (path) => new Promise((done) => request({ host: '127.0.0.1', port: other.address().port, path }, (res) => {
+    let body = '';
+    res.on('data', (chunk) => { body += chunk; });
+    res.on('end', () => done({ status: res.statusCode, type: res.headers['content-type'], body }));
+  }).end());
+  const page = await fetchOne('/');
+  const api = await fetchOne('/api/me');
   other.close();
-  assert.equal(status, 500);
-  assert.deepEqual(logged, ['request failed (EROFS)'], 'the error name only, not its message');
+  assert.equal(page.status, 500);
+  assert.match(page.body, /<h1 data-t="errorTitle">/, 'a browser gets the styled error page');
+  assert.ok(!page.body.includes('secret detail'));
+  assert.deepEqual([api.status, api.type.startsWith('application/json')], [500, true], 'the API gets JSON');
+  assert.deepEqual(logged, ['request failed (EROFS)', 'request failed (EROFS)'], 'the error name only, not its message');
 });

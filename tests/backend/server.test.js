@@ -1,10 +1,13 @@
 import test, { after, before } from 'node:test';
 import assert from 'node:assert/strict';
 import { createServer, request } from 'node:http';
-import { mkdtempSync, mkdirSync, writeFileSync, rmSync } from 'node:fs';
+import { mkdtempSync, mkdirSync, readdirSync, readFileSync, writeFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { createHandler, resolvePath, settings } from '../../app/backend/app.js';
+
+const frontend = fileURLToPath(new URL('../../app/frontend', import.meta.url));
 
 const outside = mkdtempSync(join(tmpdir(), 'hhd-'));
 const root = join(outside, 'site');
@@ -58,6 +61,25 @@ test('health, info and unknown paths', async () => {
   assert.equal((await get('/api/anything')).status, 404);
   assert.equal((await get('/missing.js')).status, 404);
   assert.equal((await get('/js')).status, 404, 'a directory is not a file');
+});
+
+// Every page a browser can land on uses the site's style (plan 2.14). Plain
+// text is only for what is not shown as a page: /healthz, the API, fetches.
+test('a page that does not exist is styled like the rest of the site', async () => {
+  const res = await get('/no-such-page');
+  assert.equal(res.status, 404);
+  assert.match(res.headers['content-type'], /^text\/html/);
+  for (const asset of ['/css/tokens.css', '/css/pair.css', '/js/pair.js']) assert.ok(res.body.includes(asset), asset);
+  assert.match(res.headers['content-security-policy'], /script-src 'self'/);
+  assert.match(res.body, /<h1 data-t="notFoundTitle">Page not found<\/h1>/);
+  assert.match((await get('/api/anything')).headers['content-type'], /json/, 'the API still answers JSON');
+});
+
+test('every HTML file of the frontend loads the design tokens', () => {
+  for (const name of readdirSync(frontend)) {
+    if (!name.endsWith('.html')) continue;
+    assert.match(readFileSync(join(frontend, name), 'utf8'), /href="css\/tokens\.css"/, name);
+  }
 });
 
 test('HEAD has headers and no body; other methods are refused', async () => {
