@@ -112,6 +112,7 @@ New UI text goes into both `js/i18n/en.js` and `js/i18n/nl.js`; a test fails whe
 - [Testing](docs/testing.md)
 - [Testing on a real tablet or phone](docs/device-testing.md)
 - [Deployment](docs/deployment.md)
+- [Phase 2 architecture (proposal)](docs/phase-2-architecture.md)
 - [Security and privacy](docs/security-and-privacy.md)
 
 ## Credits
