@@ -8,6 +8,8 @@
     if (!el) return;
     el.textContent = text;
     el.className = 'fatal is-visible';
+    // The child lock floats below this bar, never under it.
+    document.documentElement.style.setProperty('--fatal-h', el.offsetHeight + 'px');
   }
   function name(url) {
     return String(url || '').split('?')[0].split('/').pop();

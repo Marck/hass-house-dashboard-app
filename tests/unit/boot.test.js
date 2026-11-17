@@ -13,7 +13,7 @@ function boot() {
     addEventListener: (type, fn) => { handlers[type] = fn; },
     localStorage: { getItem: () => null },
   };
-  const document = { getElementById: (id) => (id === 'fatal' ? banner : null), documentElement: { setAttribute() {} } };
+  const document = { getElementById: (id) => (id === 'fatal' ? banner : null), documentElement: { setAttribute() {}, style: { setProperty() {} } } };
   window.window = window;
   vm.runInNewContext(source, { window, document, JSON, String });
   return { onError: (event) => handlers.error({ target: window, ...event }), banner, handlers, window };
