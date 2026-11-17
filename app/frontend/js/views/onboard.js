@@ -28,7 +28,15 @@ function connection({ s, d, t, f }) {
     <p class="muted ed-gap">${t('onboard.connection.help')}</p>${demo(t)}`;
 }
 
-function signin({ s, t }) {
+/** Who is signed in, from the backend; nothing when no backend sign-in is on. */
+function signedIn({ s, t }) {
+  if (!s.me || !s.me.signedIn) return '';
+  return row('lock', t('access.signedIn'), esc(s.me.name || t('access.someone')),
+    `<button type="button" class="btn" ${act('sign-out')}><span>${t('access.signOut')}</span></button>`, ' ed-wrap');
+}
+
+function signin(c) {
+  const { s, t } = c;
   const o = s.access;
   const modes = SIGNIN_MODES.map((mode) => `<button type="button" class="tile ed-row opt${o.signin === mode ? ' is-on' : ''}" aria-pressed="${o.signin === mode}" ${act('access-signin', mode)}>
       <span class="ic-box">${icon(mode === 'hass' ? 'home' : 'lock')}</span>
@@ -36,7 +44,7 @@ function signin({ s, t }) {
   const pair = row('link', t('onboard.pair.title'), o.paired ? `<i class="dot is-ok"></i> ${t('onboard.pair.done')}` : t('onboard.pair.help'),
     o.paired ? '' : `<span class="pair-code" aria-label="${t('onboard.pair.code')}">${esc(PAIR_DEMO_CODE)}</span>
       <button type="button" class="btn" ${act('access-pair')}><span>${t('onboard.pair.approve')}</span></button>`, ' ed-wrap');
-  return `<div class="ed-list" role="group" aria-label="${t('onboard.step.signin')}">${modes}</div>
+  return `${signedIn(c)}<div class="ed-list" role="group" aria-label="${t('onboard.step.signin')}">${modes}</div>
     ${eyebrow(t('onboard.pair.heading'))}${pair}${demo(t)}`;
 }
 

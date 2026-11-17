@@ -53,7 +53,8 @@ test('serves the frontend with the hardening headers', async () => {
 
 test('health, info and unknown paths', async () => {
   assert.deepEqual([(await get('/healthz')).status, (await get('/healthz')).body], [200, 'ok\n']);
-  assert.deepEqual(JSON.parse((await get('/api/info')).body), { mode: 'demo' });
+  assert.deepEqual(JSON.parse((await get('/api/info')).body), { mode: 'demo', auth: 'none' });
+  assert.deepEqual(JSON.parse((await get('/api/me')).body), { signedIn: false, via: 'none' });
   assert.equal((await get('/api/anything')).status, 404);
   assert.equal((await get('/missing.js')).status, 404);
   assert.equal((await get('/js')).status, 404, 'a directory is not a file');

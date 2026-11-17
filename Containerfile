@@ -8,7 +8,10 @@
 # architecture; its output is plain files, so nothing has to be emulated.
 FROM --platform=$BUILDPLATFORM docker.io/library/node:26-alpine@sha256:6bd9ab43c0ec0190ca7b2d193906cb8b7edf6e7f4afa43ddeccd6452710bffb5 AS info
 WORKDIR /src
-COPY package.json ./
+COPY package.json package-lock.json ./
+# The runtime dependencies are plain JavaScript, so installing them here (on the
+# build machine) is the same for every architecture. --ignore-scripts: nothing runs.
+RUN npm ci --omit=dev --ignore-scripts --no-audit --no-fund --loglevel=error
 COPY scripts/build-info.mjs scripts/
 COPY app/frontend app/frontend
 ARG GIT_SHA=""
@@ -20,11 +23,12 @@ RUN GIT_SHA="$GIT_SHA" GIT_TAG="$GIT_TAG" GIT_MODIFIED="$GIT_MODIFIED" BUILD_CHA
     node scripts/build-info.mjs
 
 # Stage 2 has no RUN step, so it builds for every architecture without emulation.
-# The backend has no dependencies outside Node itself, so there is no npm install.
+# It copies the production dependencies from stage 1 (oauth4webapi, no further ones).
 # It writes nothing, so the root filesystem can be read-only. User 101 matches the
 # chart's securityContext; it only needs to read the files.
 FROM docker.io/library/node:26-alpine@sha256:6bd9ab43c0ec0190ca7b2d193906cb8b7edf6e7f4afa43ddeccd6452710bffb5
 WORKDIR /app
+COPY --from=info /src/node_modules node_modules
 COPY app/backend backend
 COPY --from=info /src/app/frontend frontend
 ENV NODE_ENV=production PORT=8080 DASHBOARD_MODE=demo

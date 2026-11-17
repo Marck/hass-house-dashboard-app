@@ -1,6 +1,6 @@
-// The dashboard backend's request handler. Phase 2 step 1: it serves the
-// frontend, /healthz and /api/info. Only the demo mode exists, so nothing here
-// can reach Home Assistant.
+// The dashboard backend's request handler: the frontend, /healthz, /api/info,
+// /api/me and, with OIDC on, the sign-in routes. Only the demo mode exists, so
+// nothing here can reach Home Assistant.
 import { createReadStream } from 'node:fs';
 import { stat } from 'node:fs/promises';
 import { extname, join, resolve, sep } from 'node:path';
@@ -60,16 +60,32 @@ export function resolvePath(root, urlPath) {
   return file === root || file.startsWith(root + sep) ? file : null;
 }
 
-export function createHandler({ mode, root }) {
+/**
+ * `auth` is null (no sign-in: the local demo, or the preview behind forward-auth)
+ * or the object from createAuth(). With it, everything but /healthz and the
+ * sign-in routes needs a session.
+ */
+export function createHandler({ mode, root, auth = null }) {
   // The frontend names its own build (Settings, About); this says what the server runs.
-  const info = JSON.stringify({ mode });
+  const info = JSON.stringify({ mode, auth: auth ? 'oidc' : 'none' });
   return async function handle(req, res) {
-    const { pathname } = new URL(req.url, 'http://localhost');
-    if (req.method !== 'GET' && req.method !== 'HEAD') {
-      return send(res, 405, 'text/plain; charset=utf-8', 'method not allowed\n', { Allow: 'GET, HEAD' });
+    const url = new URL(req.url, 'http://localhost');
+    const { pathname } = url;
+    const read = req.method === 'GET' || req.method === 'HEAD';
+    if (pathname === '/healthz' && read) return send(res, 200, 'text/plain; charset=utf-8', 'ok\n');
+    if (auth && await auth.handle(req, res, url)) return;
+    if (!read) return send(res, 405, 'text/plain; charset=utf-8', 'method not allowed\n', { Allow: 'GET, HEAD' });
+    const who = auth ? auth.session(req) : null;
+    if (auth && !who) {
+      if (pathname.startsWith('/api/')) return send(res, 401, TYPES['.json'], '{"error":"sign in"}');
+      res.writeHead(302, { ...HEADERS, 'Cache-Control': 'no-store', Location: '/auth/login' });
+      return res.end();
     }
-    if (pathname === '/healthz') return send(res, 200, 'text/plain; charset=utf-8', 'ok\n');
     if (pathname === '/api/info') return send(res, 200, TYPES['.json'], info);
+    if (pathname === '/api/me') {
+      const me = who ? { signedIn: true, via: 'oidc', name: who.name } : { signedIn: false, via: 'none' };
+      return send(res, 200, TYPES['.json'], JSON.stringify(me), { 'Cache-Control': 'no-store' });
+    }
     if (pathname.startsWith('/api/')) return send(res, 404, TYPES['.json'], '{"error":"not found"}');
 
     const file = resolvePath(root, pathname);

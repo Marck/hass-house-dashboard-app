@@ -8,7 +8,7 @@ import { edit } from './config.js';
 
 export const ONBOARD_STEPS = ['welcome', 'connection', 'signin', 'rooms', 'features', 'lock'];
 /** How people will sign in once there is a backend. */
-export const SIGNIN_MODES = ['hass', 'proxy'];
+export const SIGNIN_MODES = ['oidc', 'hass'];
 /** Shown on the device that asks to be paired. Fixed in the demo; random and short-lived for real. */
 export const PAIR_DEMO_CODE = '482 915';
 
@@ -34,7 +34,9 @@ export const defaultAccess = () => ({ connected: false, signin: SIGNIN_MODES[0],
 export function normalizeAccess(raw) {
   const base = defaultAccess();
   if (!raw || typeof raw !== 'object') return base;
-  return { connected: raw.connected === true, signin: SIGNIN_MODES.includes(raw.signin) ? raw.signin : base.signin, paired: raw.paired === true };
+  // 'proxy' was the name for an identity provider before OIDC was chosen.
+  const signin = raw.signin === 'proxy' ? 'oidc' : raw.signin;
+  return { connected: raw.connected === true, signin: SIGNIN_MODES.includes(signin) ? signin : base.signin, paired: raw.paired === true };
 }
 
 export const isLastStep = (o) => o.step >= ONBOARD_STEPS.length - 1;

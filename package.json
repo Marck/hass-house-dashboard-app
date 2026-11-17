@@ -24,5 +24,8 @@
     "stylelint": "18.0.0",
     "stylelint-config-recommended": "19.0.0",
     "stylelint-no-unsupported-browser-features": "8.1.2"
+  },
+  "dependencies": {
+    "oauth4webapi": "3.8.8"
   }
 }
