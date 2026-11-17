@@ -212,6 +212,12 @@ Checked against the Home Assistant source (`cast/media_player.py` and `media_pla
 - No access token is typed into the dashboard during setup. The connection uses the Home Assistant sign-in, or in a cluster the token from a Secret. This keeps the rule that the browser never handles a Home Assistant credential.
 - Not verified: whether Home Assistant's own sign-in page renders on Safari 15. If it does not, pairing is the only way in for that tablet.
 
+### 2.14 One style for every page (added 2026-11-17)
+
+- Every page a browser can open uses the site's style: the design tokens, light and dark theme and the EN/NL switch. This includes pages the server renders itself: signed out, sign-in failed, not found and errors. None of them is bare HTML or plain text.
+- Plain text or JSON is only for responses that are never shown as a page: `/healthz`, the API and requests made by the page's own script.
+- A new page or server response for a browser follows this before it ships. Tests check it: every frontend HTML file loads the tokens, and the server's notice pages load the shared stylesheet.
+
 ## 3. Proposed technical approach
 
 Validate this proposal against the architecture diagram and older-device compatibility before selecting final technologies.
@@ -486,6 +492,7 @@ Not started. Needs the owner's go like the rest of Phase 2.
 - [ ] Device pairing: short-lived code, approval by a signed-in person, long-lived revocable device session, list of paired devices in the settings.
 - [ ] Setup once per installation in the backend; device steps per device.
 - [ ] Threat review of all three before use outside the local network.
+- [x] Signed-out, sign-in-failed, not-found and error pages in the site's style with EN/NL (2.14).
 
 ### Phase 2 deliverables
 

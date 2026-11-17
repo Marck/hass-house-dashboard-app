@@ -1,6 +1,7 @@
 // The pages a visitor sees before signing in: the choice between signing in
 // and pairing (welcome.html), the pairing screen of a wall tablet (pair.html)
-// and the signed-out and sign-in-failed notices (served by auth.js). Standalone: it loads nothing from the dashboard, which needs a
+// and the notices the server renders (backend/notice.js: signed out, sign-in
+// failed, not found, error). Standalone: it loads nothing from the dashboard, which needs a
 // session. The language is shared with the dashboard through its stored
 // preferences, so a choice made here is kept after signing in, and back.
 
@@ -18,6 +19,9 @@ export const TEXT = {
     signedOutTitle: 'Signed out', signedOutBody: 'You are signed out of the dashboard.',
     failedTitle: 'Sign-in failed', failedBody: 'The sign-in did not complete. Please try again.',
     signInAgain: 'Sign in',
+    notFoundTitle: 'Page not found', notFoundBody: 'This page does not exist.',
+    errorTitle: 'Something went wrong', errorBody: 'The page could not be loaded. Please try again.',
+    toDashboard: 'To the dashboard',
   },
   nl: {
     title: 'Thuisdashboard', choose: 'Hoe wil je inloggen?',
@@ -32,6 +36,9 @@ export const TEXT = {
     signedOutTitle: 'Uitgelogd', signedOutBody: 'Je bent uitgelogd van het dashboard.',
     failedTitle: 'Inloggen mislukt', failedBody: 'Het inloggen is niet gelukt. Probeer het opnieuw.',
     signInAgain: 'Inloggen',
+    notFoundTitle: 'Pagina niet gevonden', notFoundBody: 'Deze pagina bestaat niet.',
+    errorTitle: 'Er ging iets mis', errorBody: 'De pagina kon niet worden geladen. Probeer het opnieuw.',
+    toDashboard: 'Naar het dashboard',
   },
 };
 
