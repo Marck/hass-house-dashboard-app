@@ -42,6 +42,7 @@ Settings, About in the running dashboard shows the commit the image was built fr
 | `OIDC_CLIENT_SECRET` | | Client secret; from a Secret, never in values |
 | `PUBLIC_URL` | | The dashboard's own https URL; the redirect URI is `PUBLIC_URL/auth/callback` |
 | `SESSION_HOURS` | `12` | Length of a person session |
+| `DATA_DIR` | `/data` | Where the paired devices are kept (`devices.json`). Needs a writable volume; losing it means pairing the tablets again |
 
 Any variable starting with `HASS_` or `HOME_ASSISTANT_` stops the demo from starting.
 

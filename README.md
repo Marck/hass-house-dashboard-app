@@ -2,7 +2,7 @@
 
 A custom dashboard for Home Assistant: a whole-home overview with an interactive floor plan, a room detail sheet, an energy screen and a network screen. English and Dutch, light and dark.
 
-**Status: Phase 2 in progress (step 2 of 10).** The UI is complete and runs on synthetic demo data, served by a small Node backend with OIDC sign-in. It does not connect to Home Assistant yet; see [docs/phase-2-architecture.md](docs/phase-2-architecture.md).
+**Status: Phase 2 in progress (step 3 of 10).** The UI is complete and runs on synthetic demo data, served by a small Node backend with OIDC sign-in and device pairing for a wall tablet. It does not connect to Home Assistant yet; see [docs/phase-2-architecture.md](docs/phase-2-architecture.md).
 
 ## Features
 

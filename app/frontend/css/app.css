@@ -674,3 +674,5 @@ h2 { font-size: 19px; font-weight: 600; }
   .ed-row > .select { flex: 1 1 140px; }
   .net-bar > .btn { margin-left: 0; }
 }
+.pair-fields { display: flex; flex-wrap: wrap; gap: 8px; flex: 1 1 100%; }
+.pair-fields .input { flex: 1 1 9em; min-width: 0; }

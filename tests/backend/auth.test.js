@@ -6,7 +6,8 @@ import { mkdtempSync, writeFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { createHandler } from '../../app/backend/app.js';
-import { authSettings, createAuth } from '../../app/backend/auth.js';
+import { authSettings, createAuth, normalizeCode } from '../../app/backend/auth.js';
+import { createDevices, jsonFile } from '../../app/backend/devices.js';
 
 // A fake identity provider: discovery, an authorization step the test drives
 // by hand, and a token endpoint that checks the client secret and PKCE.
@@ -59,6 +60,7 @@ function idpHandler(req, res) {
 
 const site = mkdtempSync(join(tmpdir(), 'hhd-auth-'));
 const warnings = [];
+let devices;
 let clock = Date.now();
 let server;
 let port;
@@ -68,7 +70,11 @@ before(async () => {
   await new Promise((done) => idpServer.listen(0, '127.0.0.1', done));
   issuer = new URL(`http://127.0.0.1:${idpServer.address().port}/o/`);
   writeFileSync(join(site, 'index.html'), '<!doctype html><title>t</title>');
+  writeFileSync(join(site, 'welcome.html'), '<!doctype html><title>w</title>');
+  writeFileSync(join(site, 'pair.html'), '<!doctype html><title>p</title>');
+  devices = createDevices({ store: jsonFile(join(site, 'data', 'devices.json')), now: () => clock });
   const auth = createAuth({
+    devices,
     issuer, publicUrl: new URL('http://dashboard.test'), clientId: 'dashboard', clientSecret: SECRET,
     sessionMs: 60_000, insecure: true, now: () => clock, log: { warn: (m) => warnings.push(m) },
   });
@@ -86,7 +92,7 @@ beforeEach(() => {
   clock = Date.now();
 });
 
-function call(path, { method = 'GET', cookie = '', headers = {} } = {}) {
+function call(path, { method = 'GET', cookie = '', headers = {}, body } = {}) {
   return new Promise((done, fail) => {
     const req = request({ host: '127.0.0.1', port, path, method, headers: { ...(cookie ? { cookie } : {}), ...headers } }, (res) => {
       let body = '';
@@ -94,7 +100,7 @@ function call(path, { method = 'GET', cookie = '', headers = {} } = {}) {
       res.on('end', () => done({ status: res.statusCode, headers: res.headers, body }));
     });
     req.on('error', fail);
-    req.end();
+    req.end(body === undefined ? undefined : JSON.stringify(body));
   });
 }
 const cookieOf = (res, name) => (res.headers['set-cookie'] || []).find((c) => c.startsWith(`${name}=`));
@@ -119,7 +125,10 @@ async function signIn() {
 }
 
 test('without a session: pages go to sign-in, the API answers 401, health stays open', async () => {
-  assert.equal((await call('/')).headers.location, '/auth/login');
+  assert.equal((await call('/')).headers.location, '/welcome.html');
+  assert.equal((await call('/welcome.html')).status, 200, 'the sign-in choice is open');
+  assert.equal((await call('/pair.html')).status, 200, 'the pairing page is open');
+  assert.equal((await call('/api/devices')).status, 401);
   assert.equal((await call('/index.html')).status, 302);
   assert.equal((await call('/api/me')).status, 401);
   assert.equal((await call('/api/info')).status, 401);
@@ -151,7 +160,7 @@ test('a full sign-in gives an HttpOnly session that opens the dashboard', async 
   const session = valueOf(set);
   assert.equal((await call('/', { cookie: session })).status, 200);
   const me = await call('/api/me', { cookie: session });
-  assert.deepEqual(JSON.parse(me.body), { signedIn: true, via: 'oidc', name: 'Test Person' });
+  assert.deepEqual(JSON.parse(me.body), { signedIn: true, via: 'oidc', kind: 'person', name: 'Test Person' });
   assert.ok(!me.body.includes('user-1') && !me.body.includes(idp.accessToken), 'no subject id or token reaches the browser');
 });
 
@@ -213,4 +222,120 @@ test('settings: https only, all values required, none by default', () => {
   assert.throws(() => authSettings({ ...ok, OIDC_CLIENT_SECRET: '' }), /OIDC_CLIENT_SECRET/);
   assert.throws(() => authSettings({ ...ok, SESSION_HOURS: '0' }), /SESSION_HOURS/);
   assert.throws(() => authSettings({ AUTH_MODE: 'proxy' }), /AUTH_MODE/);
+});
+
+// ── Pairing ──────────────────────────────────────────────────────────────────
+const ORIGIN = { origin: 'http://dashboard.test' };
+
+async function startPairing() {
+  const res = await call('/auth/pair/start', { method: 'POST', headers: ORIGIN });
+  assert.equal(res.status, 200);
+  return { code: JSON.parse(res.body).code, pairCookie: valueOf(cookieOf(res, 'hhd_pair')) };
+}
+const approve = (session, code, name = 'Wall tablet') =>
+  call('/api/devices/approve', { method: 'POST', cookie: session, headers: ORIGIN, body: { code, name } });
+
+async function pairDevice(person, name = 'Wall tablet') {
+  const { code, pairCookie } = await startPairing();
+  assert.equal((await approve(person, code.toLowerCase().replace(/(.{4})/, '$1-'), name)).status, 200, 'case and separators do not matter');
+  const poll = await call('/auth/pair/poll', { cookie: pairCookie });
+  assert.deepEqual(JSON.parse(poll.body), { status: 'approved' });
+  return { device: valueOf(cookieOf(poll, 'hhd_device')), poll, pairCookie, code };
+}
+
+test('a tablet gets a code, waits, and is let in once a person approves it', async () => {
+  const { code, pairCookie } = await startPairing();
+  assert.match(code, /^[A-HJ-NP-Z2-9]{8}$/, 'eight characters without 0, O, 1 or I');
+  assert.deepEqual(JSON.parse((await call('/auth/pair/poll', { cookie: pairCookie })).body), { status: 'pending' });
+  const person = await signIn();
+  assert.equal((await approve(person, code)).status, 200);
+  const poll = await call('/auth/pair/poll', { cookie: pairCookie });
+  const set = cookieOf(poll, 'hhd_device');
+  assert.match(set, /HttpOnly/);
+  assert.match(set, new RegExp(`Max-Age=${30 * 24 * 3600}`));
+  const device = valueOf(set);
+  assert.equal((await call('/', { cookie: device })).status, 200);
+  assert.deepEqual(JSON.parse((await call('/api/me', { cookie: device })).body), { signedIn: true, via: 'oidc', kind: 'device', name: 'Wall tablet' });
+  assert.deepEqual(JSON.parse((await call('/auth/pair/poll', { cookie: pairCookie })).body), { status: 'expired' }, 'the code is used once');
+  assert.equal((await approve(person, code)).status, 404, 'and cannot be approved again');
+});
+
+test('only a signed-in person approves; a device cannot pair or remove devices', async () => {
+  const { code } = await startPairing();
+  assert.equal((await approve('', code)).status, 401);
+  const person = await signIn();
+  const { device } = await pairDevice(person);
+  assert.equal((await approve(device, code)).status, 403);
+  assert.equal((await call('/api/devices', { cookie: device })).status, 403);
+  const id = JSON.parse((await call('/api/devices', { cookie: person })).body).devices[0].id;
+  assert.equal((await call(`/api/devices/${id}`, { method: 'DELETE', cookie: device, headers: ORIGIN })).status, 403);
+});
+
+test('a wrong code is refused, and guessing stops after five misses', async () => {
+  const person = await signIn();
+  const { code } = await startPairing();
+  for (let i = 0; i < 5; i += 1) assert.equal((await approve(person, 'AAAAAAAA')).status, 404);
+  assert.equal((await approve(person, code)).status, 429, 'even the right code, for this person, for a while');
+  assert.equal((await approve(await signIn(), code)).status, 200, 'another person is not blocked');
+});
+
+test('a code expires after five minutes; a name is required; other sites are refused', async () => {
+  const person = await signIn();
+  const { code, pairCookie } = await startPairing();
+  assert.equal((await approve(person, code, '  ')).status, 400);
+  assert.equal((await call('/auth/pair/start', { method: 'POST', headers: { origin: 'https://evil.example' } })).status, 403);
+  assert.equal((await call('/api/devices/approve', { method: 'POST', cookie: person, headers: { origin: 'https://evil.example' }, body: { code, name: 'x' } })).status, 403);
+  clock += 5 * 60 * 1000 + 1;
+  const fresh = await signIn();
+  assert.equal((await approve(fresh, code)).status, 404);
+  assert.deepEqual(JSON.parse((await call('/auth/pair/poll', { cookie: pairCookie })).body), { status: 'expired' });
+});
+
+test('removing a device ends its session at once', async () => {
+  const person = await signIn();
+  const { device } = await pairDevice(person, 'Tablet to remove');
+  const list = JSON.parse((await call('/api/devices', { cookie: person })).body).devices;
+  const mine = list.find((d) => d.name === 'Tablet to remove');
+  assert.ok(!JSON.stringify(list).includes('tokenHash'), 'no token hash leaves the server');
+  assert.equal((await call(`/api/devices/${mine.id}`, { method: 'DELETE', cookie: person, headers: ORIGIN })).status, 200);
+  assert.equal((await call('/api/me', { cookie: device })).status, 401);
+});
+
+test('a device session lasts 30 days from its last use, and survives a restart', async () => {
+  const person = await signIn();
+  const { device } = await pairDevice(person);
+  clock += 29 * 24 * 3600 * 1000;
+  const used = await call('/api/me', { cookie: device });
+  assert.equal(used.status, 200);
+  assert.match(cookieOf(used, 'hhd_device') || '', /Max-Age=2592000/, 'the cookie is renewed with the session');
+  clock += 29 * 24 * 3600 * 1000;
+  assert.equal((await call('/api/me', { cookie: device })).status, 200, 'still in: used 29 days ago');
+  const reloaded = createDevices({ store: jsonFile(join(site, 'data', 'devices.json')), now: () => clock });
+  assert.ok(reloaded.check(device.split('=')[1]), 'a new process reads the same device');
+  clock += 31 * 24 * 3600 * 1000;
+  assert.equal((await call('/api/me', { cookie: device })).status, 401, 'unused for 31 days');
+});
+
+test('a person can still sign out on a tablet without undoing its pairing', async () => {
+  const person = await signIn();
+  const { device } = await pairDevice(person);
+  assert.equal((await call('/auth/logout', { method: 'POST', cookie: device, headers: ORIGIN })).status, 204);
+  assert.equal((await call('/api/me', { cookie: device })).status, 200);
+});
+
+test('codes are read without case or separators', () => {
+  assert.equal(normalizeCode(' abcd-ef 23 '), 'ABCDEF23');
+  assert.equal(normalizeCode(undefined), '');
+});
+
+test('a request that fails answers 500 and the server keeps running', async () => {
+  const broken = { handle: async () => { throw Object.assign(new Error('secret detail'), { code: 'EROFS' }); }, session: () => null };
+  const logged = [];
+  const handler = createHandler({ mode: 'demo', root: site, auth: broken, log: { error: (m) => logged.push(m) } });
+  const other = createServer(handler);
+  await new Promise((done) => other.listen(0, '127.0.0.1', done));
+  const status = await new Promise((done) => request({ host: '127.0.0.1', port: other.address().port, path: '/' }, (res) => { res.resume(); done(res.statusCode); }).end());
+  other.close();
+  assert.equal(status, 500);
+  assert.deepEqual(logged, ['request failed (EROFS)'], 'the error name only, not its message');
 });

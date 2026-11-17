@@ -1,0 +1,22 @@
+<!doctype html>
+<html lang="en" data-theme="light">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self'; connect-src 'self'; base-uri 'none'; form-action 'none'">
+  <meta name="referrer" content="no-referrer">
+  <meta name="robots" content="noindex, nofollow">
+  <title>Home dashboard</title>
+  <link rel="stylesheet" href="css/tokens.css">
+  <link rel="stylesheet" href="css/pair.css">
+</head>
+<body>
+  <main class="card">
+    <h1 data-t="title">Home dashboard</h1>
+    <p class="muted" data-t="choose">How do you want to sign in?</p>
+    <a class="btn primary" href="/auth/login"><b data-t="person">Sign in</b><small data-t="personHelp">With your own account. For phones and computers.</small></a>
+    <a class="btn" href="/pair.html"><b data-t="pair">Pair this device</b><small data-t="pairHelp">For a wall tablet: someone who is signed in approves it once.</small></a>
+  </main>
+  <script type="module" src="js/pair.js"></script>
+</body>
+</html>

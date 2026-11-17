@@ -1,6 +1,7 @@
 // First-run setup, one step at a time. Every step can be skipped and every
 // choice is also in the settings afterwards.
 import { esc } from '../util.js';
+import { textInput } from './parts.js';
 import { icon } from '../icons.js';
 import { LANGS } from '../i18n/index.js';
 import { MODES } from '../theme.js';
@@ -35,6 +36,28 @@ function signedIn({ s, t }) {
     `<button type="button" class="btn" ${act('sign-out')}><span>${t('access.signOut')}</span></button>`, ' ed-wrap');
 }
 
+/**
+ * Pairing for real, with the backend: a signed-in person types the code a
+ * tablet shows and names it; paired devices are listed and can be removed.
+ * A paired device itself only sees that it is paired.
+ */
+function devicesLive(c) {
+  const { s, t } = c;
+  if (s.me.kind === 'device') {
+    return `${eyebrow(t('devices.heading'))}${row('link', t('devices.thisOne'), esc(s.me.name), '', '')}`;
+  }
+  const f = s.pairForm || { code: '', name: '' };
+  const form = row('link', t('onboard.pair.title'), t('devices.help'),
+    `<span class="pair-fields">${textInput(t('devices.code'), 'pair-code', '', f.code).replace('autocapitalize="sentences"', 'autocapitalize="characters" placeholder="ABCD EFGH"')}
+      ${textInput(t('devices.name'), 'pair-name', '', f.name).replace('autocomplete="off"', `autocomplete="off" placeholder="${t('devices.namePlaceholder')}"`)}</span>
+      <button type="button" class="btn" ${act('device-approve')}><span>${t('devices.approve')}</span></button>`, ' ed-wrap');
+  const list = (s.devices || []).map((d) => row('link', esc(d.name),
+    t('devices.lastUsed', { date: new Date(d.lastSeen).toLocaleDateString() }),
+    `<button type="button" class="btn" ${act('device-revoke', d.id)}><span>${t('devices.remove')}</span></button>`, ''));
+  const none = s.devices && !s.devices.length ? `<p class="muted ed-gap">${t('devices.none')}</p>` : '';
+  return `${eyebrow(t('devices.heading'))}${form}${list.join('')}${none}`;
+}
+
 function signin(c) {
   const { s, t } = c;
   const o = s.access;
@@ -44,8 +67,9 @@ function signin(c) {
   const pair = row('link', t('onboard.pair.title'), o.paired ? `<i class="dot is-ok"></i> ${t('onboard.pair.done')}` : t('onboard.pair.help'),
     o.paired ? '' : `<span class="pair-code" aria-label="${t('onboard.pair.code')}">${esc(PAIR_DEMO_CODE)}</span>
       <button type="button" class="btn" ${act('access-pair')}><span>${t('onboard.pair.approve')}</span></button>`, ' ed-wrap');
+  const live = s.me && s.me.signedIn;
   return `${signedIn(c)}<div class="ed-list" role="group" aria-label="${t('onboard.step.signin')}">${modes}</div>
-    ${eyebrow(t('onboard.pair.heading'))}${pair}${demo(t)}`;
+    ${live ? devicesLive(c) : `${eyebrow(t('onboard.pair.heading'))}${pair}${demo(t)}`}`;
 }
 
 function rooms(c) {

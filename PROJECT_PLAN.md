@@ -692,7 +692,7 @@ Mark a task complete only when acceptance evidence exists. Do not mark work comp
 |---|---|---|
 | Phase 0: Preparation | Done | Stack chosen, repository and privacy baseline in place; see `docs/` |
 | Phase 1: Design/mockup | Done, extended | Merged 2026-11-15. Added since: settings, child lock and build info (5.8), multi-speaker music (5.9), first-run setup (5.10). Runs on the iPad Air 2 through the preview; the full device checklist is not done |
-| Phase 2: Local application | In progress | Go given 2026-11-17: Node backend, OIDC sign-in, 30-day device sessions. Steps 1 and 2 of 10 done (backend skeleton, OIDC sign-in; demo data only). Commands to real devices are tested only with the owner present |
+| Phase 2: Local application | In progress | Go given 2026-11-17: Node backend, OIDC sign-in, 30-day device sessions. Steps 1 to 3 of 10 done (backend skeleton, OIDC sign-in, device pairing; demo data only). Commands to real devices are tested only with the owner present |
 | Phase 3: Cluster deployment | Preview live | Stage 1 of 7.0 runs in the cluster since 2026-11-16 behind the identity provider (own namespace, Pod Security restricted, no egress). Everything else is blocked |
 | Privacy baseline | In place | `scripts/privacy-check.mjs` runs in every verify; see `docs/security-and-privacy.md` |
 | Target-device testing | Started | iPad Air 2: the preview opens after login (2026-11-16). The identity provider's login needed a fix for Safari 15. `docs/device-testing.md` not yet run in full; iPhone 13 not started |
