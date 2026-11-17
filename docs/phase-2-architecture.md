@@ -1,0 +1,101 @@
+# Phase 2 architecture and breakdown (for review)
+
+Status: proposal, 2026-11-17. Nothing here is built. Phase 2 starts on the owner's go; this document is not that go.
+
+## Decisions proposed
+
+| # | Decision | Proposal | Why |
+|---|---|---|---|
+| A1 | Backend | One small service: Python, run with `uv`, Starlette on uvicorn, one replica | Async WebSocket client and server in one process; few dependencies to audit; same tooling as the owner's other projects |
+| A2 | Frontend | Stays the zero-dependency ES2021 frontend, served by the backend | Safari 15 already works; no build step to break it |
+| A3 | Home Assistant access | A long-lived token of a dedicated, non-admin Home Assistant user, read by the backend from a Secret. Never sent to the browser | Requirement 2.1 |
+| A4 | What may be controlled | An allow-list in the backend: per entity domain, the services the dashboard offers. Everything else is refused before it reaches Home Assistant | Home Assistant gives a non-admin user the same service access as an admin; it has no per-entity permissions in its UI (to verify against the running version). So the backend is the only place to limit commands |
+| A5 | Sign-in | OIDC against authentik, done by the backend, instead of forward-auth at the ingress | See "Authentication" below: with forward-auth in front, a paired tablet would still need an authentik session, which is the problem pairing exists to solve |
+| A6 | Second sign-in mode | Home Assistant account, for installations without an identity provider | The first-run setup offers it; no password store of our own |
+| A7 | Tablet | Device pairing, with its own session | Safari 15 login and session length, seen 2026-11-16 |
+| A8 | Namespace | Its own namespace, as the preview | Verified: Home Assistant does not use host networking, so a policy on its namespace protects it; the cluster enforces NetworkPolicy (checked 2026-11-01, connection refused without an allow rule); the Home Assistant chart already admits named namespaces one by one |
+| A9 | Speaker groups | Members configured by the user, as in the mock | Home Assistant does not expose Cast group members; inferring them would be a guess |
+| A10 | Storage | JSON files with atomic replace on a small volume, single replica | A configuration, a few sessions and paired devices; no database needed. SQLite on the cluster's NFS volumes is avoided (file locking) |
+
+## Environments
+
+| | Mock / demo | Development | Production |
+|---|---|---|---|
+| Data | Synthetic, built into the image | Live Home Assistant | Live Home Assistant |
+| Home Assistant credential | None. The build refuses one | Token of a dedicated dev user, local `.env` outside the repo | Token in a sealed Secret |
+| Commands | Simulated | Off by default; a switch, only with the owner present | On, limited by the allow-list (A4) |
+| Sign-in | None (preview sits behind forward-auth) | Local only, or proxy headers from a test proxy | OIDC or Home Assistant account, plus pairing |
+| Where | Preview image in the cluster | The developer's machine, loopback only | Cluster |
+
+The mode is fixed at startup and shown under Settings, About. A demo image contains no backend code that could talk to Home Assistant.
+
+## Authentication
+
+Today the dashboard is behind authentik forward-auth: Traefik asks authentik before every request. That suits a browser, but a tablet with a pairing session would still be stopped at Traefik when its authentik session ends (when Safari closes, by default). Pairing only helps if the dashboard decides who gets in.
+
+Proposal:
+
+- **People:** the backend sends them to authentik with OIDC (authorization code with PKCE), then sets its own session cookie. authentik's login on Safari 15 works through the simplified page that is already live. The chart's SSO mode becomes `oidc` with a blueprint, a pattern the helm-charts repo already supports.
+- **Tablet:** the tablet shows a code valid for 5 minutes. A signed-in person approves it, naming the device. The tablet gets a device session (default 90 days, sliding), listed and revocable under Settings.
+- **Cookies:** `HttpOnly`, `Secure`, `SameSite=Lax`, set by the server with `Max-Age`. Session ids are random, stored hashed. A device session can control what the allow-list permits, not change settings or approve other devices.
+- **Lifetimes are separate:** authentik's session, the dashboard's person session (12 hours) and the device session are independent; ending one does not end the others, except that revoking a device ends its session at once.
+- **Home Assistant account mode:** the backend uses Home Assistant's own login flow and keeps nothing but the user id.
+
+To verify on the iPad Air 2 before relying on it: that a server-set cookie survives closing Safari and restarting the tablet, and still works after more than 7 days (Safari's tracking prevention limits some storage to 7 days; it should not apply to a first-party `HttpOnly` cookie, but that is to be measured, not assumed). Whether Home Assistant's login page renders on Safari 15 is also unverified.
+
+## Network permissions (cluster)
+
+| Direction | Allowed | Everything else |
+|---|---|---|
+| Inbound | Ingress controller to the backend port; Gatus to `/healthz` | Denied |
+| Outbound | DNS; the Home Assistant Service on its API port; authentik for OIDC | Denied |
+| Home Assistant side | Its namespace admits the dashboard namespace on the API port, like the existing allow rules for other apps | Unchanged |
+
+The backend never takes a URL from a request to connect to. It has no proxy endpoint, so it cannot be used as a way into the internal network. Trust boundaries: the browser trusts nothing it is sent beyond display data; the backend trusts the browser only after a valid session; Home Assistant trusts the backend's token, limited by A4.
+
+## Breakdown
+
+Each step is one or a few small pull requests, merged only with green checks, and ends with something the owner can try.
+
+1. **Backend skeleton:** serves the frontend, `/healthz`, mode switch, config store, CI. Demo mode only.
+2. **Sign-in and sessions:** OIDC, person sessions, logout, tests for every refusal. Still demo data.
+3. **Pairing:** codes, approval, device sessions, revocation, device list. Safari 15 cookie test on the tablet.
+4. **Home Assistant connection, read-only:** token from the environment, WebSocket connect and reconnect, registry discovery (areas, devices, entities). Nothing can be commanded.
+5. **Configuration in the backend:** room-to-area links, entity rules, export and import, migration from the browser-stored configuration, first-run setup once per installation.
+6. **Live states:** subscription, reconnect, unavailable and missing entities.
+7. **Energy and climate, read-only.**
+8. **Network sources** (UniFi, Zigbee), after checking which fields they really expose.
+9. **Music**, read-only first.
+10. **Commands:** allow-list, audit of what is offered, confirmation for anything that affects more than one device; tested with the owner present, never by automated tests on real devices.
+
+Then Phase 3: chart for the backend, network policies as above, sealed Secret.
+
+## Tests
+
+Deterministic, with a fake Home Assistant (a small WebSocket and REST server in the test suite), never the real one.
+
+- Sign-in: missing, expired and forged sessions; wrong OIDC state; logout.
+- Pairing: expired code, reused code, approval by a device session (refused), revoked device.
+- API: every endpoint without a session, with a device session where a person is required.
+- Home Assistant: connection refused, bad token, disconnect mid-subscription, reconnect with state resync.
+- Data: missing and unavailable entities, attributes absent, configuration from an older version.
+- Commands: outside the allow-list, unsupported by the entity, Home Assistant error.
+- Privacy: no token, session or Home Assistant address in any response, log line or export.
+
+Device checklists stay separate for the iPad Air 2 and the iPhone 13 (`docs/device-testing.md`).
+
+## Compatibility baseline
+
+Safari 15 on iPadOS 15 (iPad Air 2) is a first-class target, then current Safari on iPhone, then current desktop browsers. ES2021 syntax ceiling, checked by lint; no dependency that needs a newer browser.
+
+## Open for the owner
+
+1. Go for Phase 2, and whether to start at step 1.
+2. A5: move the dashboard from forward-auth to OIDC. Recommended; it changes how the preview is protected, so it is the owner's call.
+3. A1: Python backend. The alternative is Node, which would share code with the frontend tests.
+4. A device session of 90 days: right length, or shorter.
+
+## Where this differs from the review of 2026-11-17
+
+- The review asks not to publish or deploy without explicit approval. The owner has given standing permission to merge this project's pull requests, which deploys the preview; that stands. Anything that gives the cluster a Home Assistant credential still needs the owner's explicit approval.
+- The review proposes a development environment "with restricted permissions" in Home Assistant. Home Assistant offers no such restriction for service calls, so the restriction lives in the backend (A4), in development too.

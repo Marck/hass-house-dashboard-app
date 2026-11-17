@@ -399,6 +399,8 @@ Accepted when: the tabs and the overview follow playback without a reload; a gro
 
 **Goal:** connect the approved Phase 1 interface to Home Assistant and operate locally on a PC. No Kubernetes deployment in this phase.
 
+Proposed architecture and breakdown, for review: [docs/phase-2-architecture.md](docs/phase-2-architecture.md) (2026-11-17).
+
 ### 6.1 Integration design
 
 - [ ] Reconfirm architecture diagram and trust boundaries.
@@ -753,7 +755,7 @@ Resolve these at the appropriate gate; do not block the planning document on det
 - [ ] Confirm minimum browser versions after checking iPad Air 2 installed iOS/Safari version. Assumed Safari 15 (iPadOS 15.8 is the last release for that model); the installed version is not confirmed.
 - [ ] Phase 2: confirm which Zigbee integration is in use and which fields the UniFi and Zigbee integrations expose through Home Assistant.
 - [ ] Phase 2: which of the owner's speakers report the grouping capability, and how group membership is learned (section 2.12).
-- [ ] Phase 3: confirm NetworkPolicy enforcement in the cluster and whether Home Assistant uses host networking. (Answered 2026-11-16: the identity provider's normal login page does not work in Safari 15; its simplified page does, and the cluster now redirects old Safari there.)
+- [x] Phase 3: NetworkPolicy is enforced (verified 2026-11-01 in the helm-charts repo) and Home Assistant does not use host networking (checked 2026-11-17, read-only). (Answered 2026-11-16: the identity provider's normal login page does not work in Safari 15; its simplified page does, and the cluster now redirects old Safari there.)
 
 ## 13. Definition of done
 
