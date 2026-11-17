@@ -203,7 +203,7 @@ Checked against the Home Assistant source (`cast/media_player.py` and `media_pla
 
 ### 2.13 First-run setup, sign-in and device pairing (added 2026-11-16)
 
-- A first-run setup walks through: language and theme, the Home Assistant connection, how people sign in, rooms taken from Home Assistant areas, optional features (several speakers, EV charging, network sources) and the child lock. Every step can be skipped; every choice is also in the settings; the setup can be run again from there.
+- A first-run setup walks through: language and theme, the Home Assistant connection, how people sign in, rooms taken from Home Assistant areas, optional features (several speakers, EV charging, network sources) and the child lock. Every step can be skipped and the setup says so. It runs once: there is no way to run it again, because that reads as wiping everything. Instead every choice it offers is in the settings (decision 2026-11-17).
 - When it runs: in Phase 1, on a device with no stored configuration. From Phase 2 the configuration lives in the backend, so the installation is set up once; a new device then gets only the device steps (language, theme, child lock, pairing).
 - Sign-in is enforced by the backend, never by the browser alone. A login screen in the frontend only would protect nothing. Two modes, no password store of our own:
   - Behind a sign-in proxy: the backend trusts the identity the proxy passes on, and only from that proxy.
@@ -360,7 +360,7 @@ Accepted when: the tabs and the overview follow playback without a reload; a gro
 
 ### 5.10 First-run setup (mocked, added 2026-11-16)
 
-- [x] Setup on a clean device, with the six steps of 2.13, skippable, resumable after a reload, and restartable from the settings.
+- [x] Setup on a clean device, with the six steps of 2.13, skippable and resumable after a reload. Everything it offers is also in the settings; a test keeps the two in step.
 - [x] Connection, sign-in and pairing steps as designs, each labelled as a demo that connects to nothing and protects nothing.
 - [x] Rooms, optional features and child lock steps change the real configuration.
 

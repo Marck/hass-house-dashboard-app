@@ -5,6 +5,7 @@ import { createI18n } from '../../app/frontend/js/i18n/index.js';
 import { defaultConfig } from '../../app/frontend/js/config.js';
 import { applyConfig } from '../../app/frontend/js/model.js';
 import { defaultLock } from '../../app/frontend/js/lock.js';
+import { defaultAccess } from '../../app/frontend/js/onboard.js';
 import { appView, context } from '../../app/frontend/js/views/app.js';
 
 export const LAYOUTS = ['desktop', 'tablet', 'phone'];
@@ -28,7 +29,7 @@ export function setup({ lang = 'en', state = {}, tweak } = {}) {
   const cfg = defaultConfig(d);
   if (tweak) tweak(cfg, d);
   applyConfig(d, cfg);
-  const s = { ...STATE, lang, lock: defaultLock(), ...state };
+  const s = { ...STATE, lang, lock: defaultLock(), access: defaultAccess(), ...state };
   return { d, cfg, s, c: context(s, d, createI18n(lang), cfg) };
 }
 

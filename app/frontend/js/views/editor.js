@@ -8,6 +8,7 @@ import { LOCK_SCOPES, LOCK_METHODS, LOCK_IDLE_MINUTES, PIN_LENGTH } from '../loc
 import { BUILD } from '../build-info.js';
 import { act, toggle, seg, select, eyebrow, sheet, textInput, roomNameRaw, floorName, floorNameRaw, showId } from './parts.js';
 import { musicSettings } from './music.js';
+import { deviceChoices, accessSettings } from './onboard.js';
 import { evValueText, SLOT_ICONS } from './ev.js';
 
 const KIND_ICONS = { speaker: 'speaker', light: 'bulb', switch: 'power', climate: 'radiator', door: 'door', motion: 'walk', temp: 'gauge' };
@@ -200,7 +201,10 @@ export function settingsSheet(c) {
   const confirming = s.confirm === 'config';
 
   const head = `<div><h2 id="sheet-title">${t('settings.title')}</h2><p class="lead">${t('settings.lead')}</p></div>`;
-  return sheet(c, head, `${lockSection(c)}<section>${eyebrow(t('card.ev'), t(evOn ? 'common.on' : 'common.off'))}
+  const device = `<section>${eyebrow(t('settings.device'))}${deviceChoices(c)}</section>`;
+  const rooms = `<section>${eyebrow(t('settings.rooms'))}<p class="muted">${t('settings.rooms.hint')}</p>
+      <div class="btn-row"><button type="button" class="btn" ${act('rooms-edit')}>${icon('edit')}<span>${t('settings.rooms.open')}</span></button></div></section>`;
+  return sheet(c, head, `${device}${accessSettings(c)}${rooms}${lockSection(c)}<section>${eyebrow(t('card.ev'), t(evOn ? 'common.on' : 'common.off'))}
       <div class="tile ed-row"><span class="ic-box">${icon('car')}</span><span class="ed-name"><b>${t('settings.ev.show')}</b><small>${t('settings.ev.showHelp')}</small></span>
         ${toggle({ on: evOn, label: t('settings.ev.show'), action: 'card-toggle', arg: 'ev' })}</div>
       <p class="muted ed-gap">${t('settings.ev.hint')}</p><ul class="ed-list">${slots}</ul></section>
@@ -210,7 +214,6 @@ export function settingsSheet(c) {
     <section>${eyebrow(t('settings.backup'))}<p class="muted">${t('settings.backup.hint')}</p>
       <div class="btn-row"><button type="button" class="btn" ${act('config-export')}><span>${t('settings.backup.export')}</span></button>
         <label class="btn file-btn"><input type="file" class="sr-only" accept="application/json,.json" aria-label="${t('settings.backup.import')}" data-input="config-import" data-fid="config-import:"><span>${t('settings.backup.import')}</span></label>
-        <button type="button" class="btn" ${act('onboard-start')}><span>${t('onboard.again')}</span></button>
         <button type="button" class="btn btn-danger${confirming ? ' is-armed' : ''}" ${act('config-reset')}><span>${t(confirming ? 'settings.backup.resetConfirm' : 'settings.backup.reset')}</span></button></div></section>
     ${diagnosticsSection(c)}${aboutSection(c)}`);
 }
