@@ -18,7 +18,13 @@
       show('Could not load ' + name(target.src || target.href));
       return;
     }
-    show((event.message || 'Script error') + (event.filename ? ' (' + name(event.filename) + ':' + event.lineno + ')' : ''));
+    // An error with no file is opaque: the browser hides the details because
+    // the script is not ours (an extension, a content blocker, the browser's
+    // own additions). Every script of the dashboard is same-origin, so its
+    // errors always carry a file name. Showing these would put a red bar on a
+    // working dashboard that nobody can act on; iOS Safari does this on load.
+    if (!event.filename) return;
+    show((event.message || 'Script error') + ' (' + name(event.filename) + ':' + event.lineno + ')');
   }, true);
   window.addEventListener('unhandledrejection', function (event) {
     var reason = event.reason;

@@ -54,7 +54,9 @@ test('every step renders in both languages and layouts, with its own controls', 
       const html = render({ lang, state: { ...at(step, extra), layout } });
       assert.ok(!/\[[a-z]+\.[\w.]+\]|undefined|NaN|\[object/.test(html), `${lang} ${layout} ${step}`);
       assert.match(html, /class="sheet onboard"/);
-      ['onboard-back', 'onboard-skip', 'onboard-next'].forEach((a) => assert.ok(html.includes(`data-action="${a}"`), `${step} ${a}`));
+      ['onboard-skip', 'onboard-next'].forEach((a) => assert.ok(html.includes(`data-action="${a}"`), `${step} ${a}`));
+      // Nothing to go back to on the first step.
+      assert.equal(html.includes('data-action="onboard-back"'), step !== ONBOARD_STEPS[0], `${step} back`);
       // Once paired, the approve button is gone: there is nothing left to approve.
       expect[step].filter((mark) => !(extra.paired && mark.includes('access-pair'))).forEach((mark) => assert.ok(html.includes(mark), `${step} lacks ${mark}`));
     });

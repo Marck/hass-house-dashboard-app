@@ -89,7 +89,7 @@ export function onboardSheet(c) {
     <p class="muted onboard-hint">${icon('gear')}<span>${t('onboard.inSettings')}</span></p>
     ${STEP_VIEWS[step](c)}
     <div class="btn-row onboard-nav">
-      <button type="button" class="btn"${o.step === 0 ? ' disabled' : ''} ${act('onboard-back')}>${icon('back')}<span>${t('onboard.back')}</span></button>
+      ${o.step === 0 ? '' : `<button type="button" class="btn" ${act('onboard-back')}>${icon('back')}<span>${t('onboard.back')}</span></button>`}
       <button type="button" class="btn" ${act('onboard-skip')}><span>${t('onboard.skip')}</span></button>
       <button type="button" class="btn btn-solid" ${act('onboard-next')}><span>${t(last ? 'onboard.finish' : 'onboard.next')}</span></button>
     </div></div>`;
