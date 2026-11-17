@@ -594,6 +594,12 @@ h2 { font-size: 19px; font-weight: 600; }
 /* ---------- Child lock ---------- */
 .lock-btn { position: relative; overflow: hidden; min-width: 150px; background: var(--amber-soft); color: var(--amber); box-shadow: 0 0 0 1.5px var(--amber-fill); -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
 .lock-btn > * { pointer-events: none; }
+.lock-float { position: fixed; top: calc(env(safe-area-inset-top) + 12px + var(--fatal-h, 0px)); right: calc(env(safe-area-inset-right) + 12px); z-index: 60; }
+.lock-float .lock-btn { box-shadow: var(--shadow-pop), 0 0 0 1.5px var(--amber-fill); }
+.lock-now { box-shadow: var(--shadow-pop); }
+.has-lock .top { padding-right: 64px; }
+.is-locked .top { padding-right: 172px; }
+.has-lock .sheet { top: calc(76px + var(--fatal-h, 0px)); }
 .hold-fill { position: absolute; left: 0; bottom: 0; width: 0; height: 5px; background: var(--amber); }
 .lock-btn.is-holding .hold-fill { width: 100%; transition: width 3s linear; }
 .pinpad { top: auto; bottom: 0; max-width: 420px; padding: 30px 26px 34px; text-align: center; }

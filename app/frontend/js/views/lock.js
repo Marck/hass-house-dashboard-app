@@ -10,6 +10,19 @@ export function lockButton({ s, t }) {
     ${icon('lock')}<span>${t('lock.locked')}</span><i class="hold-fill" aria-hidden="true"></i></button>`;
 }
 
+/**
+ * The child lock control, shown on every screen while the lock is on: the way
+ * to unlock while locked, "lock now" while unlocked. It floats above sheets so
+ * it is never covered, and sits below the error bar when there is one.
+ */
+export function lockFloat(c) {
+  const { s, t } = c;
+  if (!s.lock.enabled) return '';
+  const body = s.locked ? lockButton(c)
+    : `<button type="button" class="icon-btn lock-now" aria-label="${t('lock.now')}" ${act('lock-now')}>${icon('lock')}</button>`;
+  return `<div class="lock-float">${body}</div>`;
+}
+
 export function pinPad({ s, t }) {
   const dots = Array.from({ length: PIN_LENGTH }, (_, i) => `<i class="${i < s.pinEntry.length ? 'is-on' : ''}"></i>`).join('');
   const key = (digit) => `<button type="button" class="pin-key" ${act('pin-digit', String(digit))}>${digit}</button>`;

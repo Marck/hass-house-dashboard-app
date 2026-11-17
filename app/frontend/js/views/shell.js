@@ -4,7 +4,7 @@ import { MODES, SUN_STATES } from '../theme.js';
 import { netViews } from '../config.js';
 import { act, seg } from './parts.js';
 import { editBar } from './editor.js';
-import { lockButton } from './lock.js';
+import { lockFloat } from './lock.js';
 
 const NAV = [['home', 'home'], ['energy', 'bolt'], ['network', 'network']];
 
@@ -40,8 +40,8 @@ export function shell(c, body, overlay) {
   const nav = NAV.filter(([id]) => id !== 'network' || netViews(cfg).length)
     .map(([id, ic]) => `<a class="seg-item${s.view === id ? ' is-on' : ''}" href="#/${id}"${s.view === id ? ' aria-current="page"' : ''} data-fid="nav:${id}">${icon(ic)}<span>${t(`nav.${id}`)}</span></a>`).join('');
   const hidden = overlay ? ' aria-hidden="true"' : '';
-  // While the child lock is on, the only thing in the bar is the way to unlock.
-  const actions = s.locked ? lockButton(c) : `<button type="button" class="btn btn-compact${s.edit ? ' is-on' : ''}" aria-pressed="${s.edit}" aria-label="${t('layout.edit')}" ${act('edit-layout')}>${icon('edit')}<span>${t('layout.edit')}</span></button>
+  // While the child lock is on the bar is empty: the lock itself floats (lockFloat).
+  const actions = s.locked ? '' : `<button type="button" class="btn btn-compact${s.edit ? ' is-on' : ''}" aria-pressed="${s.edit}" aria-label="${t('layout.edit')}" ${act('edit-layout')}>${icon('edit')}<span>${t('layout.edit')}</span></button>
         <div class="menu-root" data-menu-root>
           <button type="button" class="btn" aria-haspopup="true" aria-expanded="${s.menu === 'lang'}" ${act('menu', 'lang')}>${icon('globe')}<span>${t('lang.button')}</span></button>
           ${s.menu === 'lang' ? langMenu(c) : ''}
@@ -51,7 +51,7 @@ export function shell(c, body, overlay) {
           ${s.menu === 'theme' ? themeMenu(c) : ''}
         </div>
         <button type="button" class="icon-btn" aria-label="${t('settings.title')}" ${act('settings')}>${icon('gear')}</button>
-        ${s.lock.enabled ? `<button type="button" class="icon-btn" aria-label="${t('lock.now')}" ${act('lock-now')}>${icon('lock')}</button>` : ''}`;
+`;
   return `<div class="page"${hidden}>
     <a class="skip" href="#main">${t('a11y.skip')}</a>
     <header class="top">
@@ -63,5 +63,5 @@ export function shell(c, body, overlay) {
     </header>
     ${s.edit && !s.locked ? editBar(c) : ''}
     <main id="main" tabindex="-1">${body}</main>
-  </div>${overlay}`;
+  </div>${overlay}${lockFloat(c)}`;
 }

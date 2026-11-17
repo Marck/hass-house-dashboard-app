@@ -177,6 +177,7 @@ function render() {
   html.setAttribute('data-theme', theme);
   html.classList.toggle('has-sheet', Boolean(sheet));
   html.classList.toggle('is-locked', s.locked);
+  html.classList.toggle('has-lock', s.lock.enabled);
   document.title = `${i18n.tx(`nav.${s.view}`)} · ${i18n.tx('app.title')}`;
   const meta = document.querySelector('meta[name="theme-color"]');
   if (meta) meta.setAttribute('content', THEME_COLORS[theme]);
@@ -686,11 +687,16 @@ const inputs = {
   'room-floor'(id, floorId) {
     if (edit.setRoomFloor(cfg, id, floorId)) commit();
   },
+  // The focus goes to what was just added, not back to the picker.
   'area-pick'(roomId, areaId) {
-    if (areaId && edit.linkArea(cfg, roomId, areaId)) commit();
+    if (!areaId || !edit.linkArea(cfg, roomId, areaId)) return;
+    commit();
+    focusNext = `area-unlink:${roomId}:${areaId}`;
   },
   'entity-pick'(roomId, entityId) {
-    if (entityId && edit.includeEntity(cfg, roomId, entityId)) commit();
+    if (!entityId || !edit.includeEntity(cfg, roomId, entityId)) return;
+    commit();
+    focusNext = `entity-drop:${roomId}:${entityId}`;
   },
   'ev-map'(slot, entityId) {
     if (edit.setEvEntity(cfg, slot, entityId)) commit();
@@ -771,6 +777,9 @@ root.addEventListener('change', (event) => {
   if (kind === 'climate-target') render();
   if (kind === 'config-import') importConfig(el.files && el.files[0]);
   if (!inputs[kind]) return;
+  // Putting the focus back on a select after a render makes iOS open its picker
+  // again. A select gives up the focus once it has changed.
+  if (el.tagName === 'SELECT') el.blur();
   inputs[kind](el.getAttribute('data-arg') || '', el.value);
   render();
 });
