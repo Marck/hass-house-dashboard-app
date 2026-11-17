@@ -1,4 +1,4 @@
-# Only package.json, scripts/build-info.mjs, deploy/ and app/frontend are needed.
+# Only package.json, scripts/build-info.mjs and app/ are needed.
 .git
 .github
 .claude

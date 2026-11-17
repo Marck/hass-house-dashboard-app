@@ -2,7 +2,7 @@
   "name": "hass-house-dashboard-app",
   "version": "0.1.0",
   "private": true,
-  "description": "Custom Home Assistant dashboard. Phase 1: mocked UI with synthetic data.",
+  "description": "Custom Home Assistant dashboard: a zero-dependency frontend and a small Node backend.",
   "license": "MIT",
   "type": "module",
   "engines": {
@@ -11,7 +11,8 @@
   "scripts": {
     "lint:js": "eslint --max-warnings 0 .",
     "lint:css": "stylelint --max-warnings 0 \"app/frontend/css/**/*.css\"",
-    "test": "node --test \"tests/unit/*.test.js\"",
+    "start": "node app/backend/main.js",
+    "test": "node --test \"tests/unit/*.test.js\" \"tests/backend/*.test.js\"",
     "privacy": "node scripts/privacy-check.mjs",
     "verify": "npm run lint:js && npm run lint:css && npm test && npm run privacy"
   },

@@ -1,8 +1,8 @@
-# Preview image: the dashboard's static files behind an unprivileged nginx.
-# It serves the demo (synthetic data). There is no backend and no token in it.
+# The dashboard: the Node backend serving the frontend. Phase 2 step 1 has the
+# demo mode only, so the image holds synthetic data and no way to reach Home Assistant.
 #
 #   podman build -t dashboard:dev --build-arg GIT_SHA="$(git rev-parse HEAD)" .
-#   podman run --rm --read-only --tmpfs /tmp -p 8080:8080 dashboard:dev
+#   podman run --rm --read-only -p 8080:8080 dashboard:dev
 
 # Stage 1 records which commit this is. It runs on the build machine's own
 # architecture; its output is plain files, so nothing has to be emulated.
@@ -20,9 +20,14 @@ RUN GIT_SHA="$GIT_SHA" GIT_TAG="$GIT_TAG" GIT_MODIFIED="$GIT_MODIFIED" BUILD_CHA
     node scripts/build-info.mjs
 
 # Stage 2 has no RUN step, so it builds for every architecture without emulation.
-# The base image runs as user 101 and listens on 8080. Its only writable path is /tmp.
-FROM docker.io/nginxinc/nginx-unprivileged:stable-alpine@sha256:f5116ed4606f3eb015dd4a8e28cb9b351476dc0ad4bc6e9f93b19cec130cdf03
-COPY deploy/nginx.conf /etc/nginx/conf.d/default.conf
-COPY --from=info /src/app/frontend /usr/share/nginx/html
-USER 101
+# The backend has no dependencies outside Node itself, so there is no npm install.
+# It writes nothing, so the root filesystem can be read-only. User 101 matches the
+# chart's securityContext; it only needs to read the files.
+FROM docker.io/library/node:26-alpine@sha256:6bd9ab43c0ec0190ca7b2d193906cb8b7edf6e7f4afa43ddeccd6452710bffb5
+WORKDIR /app
+COPY app/backend backend
+COPY --from=info /src/app/frontend frontend
+ENV NODE_ENV=production PORT=8080 DASHBOARD_MODE=demo
+USER 101:101
 EXPOSE 8080
+CMD ["node", "backend/main.js"]

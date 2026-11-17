@@ -28,7 +28,7 @@ export default [
     rules: { 'no-var': 'off' },
   },
   {
-    files: ['tests/**/*.js', 'scripts/**/*.mjs', 'eslint.config.js'],
+    files: ['tests/**/*.js', 'scripts/**/*.mjs', 'eslint.config.js', 'app/backend/**/*.js'],
     languageOptions: { ecmaVersion: 2024, sourceType: 'module', globals: globals.node },
     rules: { 'no-unused-vars': unused, eqeqeq: 'error', 'prefer-const': 'error' },
   },

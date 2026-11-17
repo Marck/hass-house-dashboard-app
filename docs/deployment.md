@@ -6,11 +6,11 @@ Only the **early preview** is approved: the demo in the cluster, so the dashboar
 
 | Part | Where | State |
 |---|---|---|
-| Image | `Containerfile` and `deploy/nginx.conf` here; published by the Image workflow to the GitHub container registry | Published 2026-11-16: public, amd64 and arm64 |
+| Image | `Containerfile` and `app/backend` here; published by the Image workflow to the GitHub container registry | Published 2026-11-16: public, amd64 and arm64 |
 | Chart | `apps/house-dashboard` in the owner's Helm repository | Written, waiting for the owner's merge |
 | Rollout | A merge there, synced by the cluster's GitOps tooling | Nothing is deployed |
 
-The image holds the static files and the demo data. It has no backend and no token. It runs as a non-root user with a read-only root filesystem; `/tmp` is its only writable path, so the pod needs an `emptyDir` there. It listens on port 8080 and answers `/healthz` for probes. Authentication is not in the image: the ingress sends every request through the identity provider.
+The image runs the Node backend (`app/backend`), which serves the frontend and the demo data. In this phase it runs in demo mode only: it has no Home Assistant code and refuses to start when any `HASS_` or `HOME_ASSISTANT_` setting is present. It runs as a non-root user with a read-only root filesystem and writes nothing; the chart's `/tmp` `emptyDir` is harmless and kept. It listens on port 8080 and answers `/healthz` for probes. Authentication is not in the image: the ingress sends every request through the identity provider.
 
 The chart runs it in its own namespace: Pod Security `restricted`, inbound from the ingress controller and the uptime monitor only, no egress, the image pinned by digest. Its test boots the pinned image the way the pod runs it.
 
@@ -23,7 +23,7 @@ podman build -t dashboard:dev .
 ```
 
 ```bash
-podman run --rm --read-only --read-only-tmpfs=false --tmpfs /tmp -p 8080:8080 dashboard:dev
+podman run --rm --read-only --read-only-tmpfs=false --user 101:101 -p 8080:8080 dashboard:dev
 ```
 
 `--read-only-tmpfs=false` matters: without it podman adds writable `/run` and `/var/tmp` of its own, which a pod does not have.

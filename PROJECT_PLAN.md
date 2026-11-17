@@ -399,7 +399,7 @@ Accepted when: the tabs and the overview follow playback without a reload; a gro
 
 **Goal:** connect the approved Phase 1 interface to Home Assistant and operate locally on a PC. No Kubernetes deployment in this phase.
 
-Proposed architecture and breakdown, for review: [docs/phase-2-architecture.md](docs/phase-2-architecture.md) (2026-11-17).
+Architecture and breakdown, approved 2026-11-17: [docs/phase-2-architecture.md](docs/phase-2-architecture.md). Step 1 (backend skeleton) is done.
 
 ### 6.1 Integration design
 
@@ -692,7 +692,7 @@ Mark a task complete only when acceptance evidence exists. Do not mark work comp
 |---|---|---|
 | Phase 0: Preparation | Done | Stack chosen, repository and privacy baseline in place; see `docs/` |
 | Phase 1: Design/mockup | Done, extended | Merged 2026-11-15. Added since: settings, child lock and build info (5.8), multi-speaker music (5.9), first-run setup (5.10). Runs on the iPad Air 2 through the preview; the full device checklist is not done |
-| Phase 2: Local application | Approved, waiting for the owner's go | The owner put testing on the iPad first (2026-11-16). Starts with read-only discovery; commands to real devices are tested only with the owner present |
+| Phase 2: Local application | In progress | Go given 2026-11-17: Node backend, OIDC sign-in, 30-day device sessions. Step 1 of 10 done (backend skeleton, demo only). Commands to real devices are tested only with the owner present |
 | Phase 3: Cluster deployment | Preview live | Stage 1 of 7.0 runs in the cluster since 2026-11-16 behind the identity provider (own namespace, Pod Security restricted, no egress). Everything else is blocked |
 | Privacy baseline | In place | `scripts/privacy-check.mjs` runs in every verify; see `docs/security-and-privacy.md` |
 | Target-device testing | Started | iPad Air 2: the preview opens after login (2026-11-16). The identity provider's login needed a fix for Safari 15. `docs/device-testing.md` not yet run in full; iPhone 13 not started |
@@ -702,7 +702,7 @@ Mark a task complete only when acceptance evidence exists. Do not mark work comp
 | Gate | Approval required to start | Approval recorded |
 |---|---|---|
 | Phase 1 | Start static design/mockup | Yes, 2026-11-15 (request to build the dashboard following this plan; read as Phase 0 and 1 only) |
-| Phase 2 | Start live HA integration/local app | Yes, 2026-11-15 ("proceed with phase 2", given after Phase 1 was merged) |
+| Phase 2 | Start live HA integration/local app | Yes, 2026-11-15 ("proceed with phase 2"); go on the reviewed architecture 2026-11-17 ("Go for phase 2") |
 | Early preview | Demo in the cluster for device testing (section 7.0) | Yes, 2026-11-15 ("deploy the early preview version") |
 | Phase 3 | Start cluster/container/Helm work | No, apart from the early preview |
 | Production rollout | Deploy approved cluster changes | No |
@@ -741,6 +741,7 @@ Append an entry whenever meaningful work is completed:
 - Privacy/security review: passed for every change. Images hold demo data only, no token anywhere.
 - Blockers: none.
 - Approval needed: go for Phase 2. Decisions for it: how speaker group members are learned (2.12), sign-in mode and pairing (2.13), whether the backend lives in the Home Assistant namespace or its own (7.0).
+- Later that day: go given. Decided: Node backend, OIDC sign-in, 30-day device sessions. Step 1 done: the image now runs a Node backend (demo only, no Home Assistant code) instead of nginx.
 
 ## 12. Open questions / required inputs
 

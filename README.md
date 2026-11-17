@@ -2,7 +2,7 @@
 
 A custom dashboard for Home Assistant: a whole-home overview with an interactive floor plan, a room detail sheet, an energy screen and a network screen. English and Dutch, light and dark.
 
-**Status: Phase 1 is done, Phase 2 is next.** The UI is complete and runs on synthetic demo data. It does not connect to Home Assistant yet.
+**Status: Phase 2 in progress (step 1 of 10).** The UI is complete and runs on synthetic demo data, served by a small Node backend. It does not connect to Home Assistant yet; see [docs/phase-2-architecture.md](docs/phase-2-architecture.md).
 
 ## Features
 
@@ -28,11 +28,11 @@ Requirements, decisions and the approval log are in [PROJECT_PLAN.md](PROJECT_PL
 
 | To | You need |
 |---|---|
-| Run the dashboard | Any static file server. The example below uses [uv](https://docs.astral.sh/uv/) |
+| Run the dashboard | Node 26 or podman for the backend; for the demo alone any static file server, the example below uses [uv](https://docs.astral.sh/uv/) |
 | Run the checks | podman or docker, or Node 26 |
 | Use it | Safari 15 or newer, or a current Chrome, Edge or Firefox |
 
-No account, API key or token is needed in Phase 1.
+No account, API key or token is needed yet.
 
 ## Run it locally
 
@@ -42,7 +42,19 @@ There is no build step and there are no runtime dependencies. Serve `app/fronten
 uv run --no-project scripts/serve.py
 ```
 
-Then open <http://localhost:4173>. The script also prints an address for a tablet or phone on the same network; see [docs/device-testing.md](docs/device-testing.md). Add `--local` to keep it on your own machine. The demo holds no real data.
+Then open <http://localhost:4173>. To run it the way the cluster does, through the backend in a container:
+
+```bash
+podman build -t dashboard:dev .
+```
+
+```bash
+podman run --rm --read-only -p 8080:8080 dashboard:dev
+```
+
+Then open <http://localhost:8080>. With Node 26 installed, `npm start` does the same without a container.
+
+The `uv` script also prints an address for a tablet or phone on the same network; see [docs/device-testing.md](docs/device-testing.md). Add `--local` to keep it on your own machine. The demo holds no real data.
 
 ## Using the dashboard
 
