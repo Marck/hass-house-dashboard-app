@@ -23,7 +23,19 @@ export function needsOnboarding(storedConfig, setup) {
   return !storedConfig || state.started === true;
 }
 
-export const startOnboarding = () => ({ step: 0, connected: false, signin: SIGNIN_MODES[0], paired: false, skipRooms: [] });
+export const startOnboarding = () => ({ step: 0, skipRooms: [] });
+
+/**
+ * Connection and sign-in choices. Designs in Phase 1, kept per device so the
+ * setup and the settings show the same thing; the backend owns them later.
+ */
+export const defaultAccess = () => ({ connected: false, signin: SIGNIN_MODES[0], paired: false });
+
+export function normalizeAccess(raw) {
+  const base = defaultAccess();
+  if (!raw || typeof raw !== 'object') return base;
+  return { connected: raw.connected === true, signin: SIGNIN_MODES.includes(raw.signin) ? raw.signin : base.signin, paired: raw.paired === true };
+}
 
 export const isLastStep = (o) => o.step >= ONBOARD_STEPS.length - 1;
 

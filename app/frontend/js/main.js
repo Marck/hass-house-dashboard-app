@@ -5,7 +5,7 @@ import { createI18n, LANGS } from './i18n/index.js';
 import { resolveTheme, MODES, SUN_STATES } from './theme.js';
 import { commands, applyConfig } from './model.js';
 import { musicCommands, groupable, tempGroup } from './music.js';
-import { needsOnboarding, startOnboarding, isLastStep, moveStep, toggleRoom, applyOnboarding, SIGNIN_MODES } from './onboard.js';
+import { needsOnboarding, startOnboarding, isLastStep, moveStep, toggleRoom, applyOnboarding, normalizeAccess, SIGNIN_MODES } from './onboard.js';
 import { CARDS, defaultConfig, normalizeConfig, parseConfig, serializeConfig, edit, netViews } from './config.js';
 import { appView, context } from './views/app.js';
 import { climateVisual, climateStatus } from './views/room.js';
@@ -73,6 +73,7 @@ const s = {
   musicSel: null, // the speaker or group the music card shows
   musicPick: [], // speakers ticked in that sheet
   onboard: null, // the first-run setup while it is open
+  access: normalizeAccess((loadJson(SETUP_KEY) || {}).access), // connection and sign-in choices (designs)
 };
 s.locked = s.lock.enabled;
 const d = createFixture();
@@ -93,8 +94,12 @@ let pinBlockedUntil = 0;
 
 const savePrefs = () => saveJson(PREFS_KEY, JSON.stringify({ lang: s.lang, mode: s.theme.mode, manual: s.theme.manual }));
 const saveDevice = () => saveJson(DEVICE_KEY, JSON.stringify({ lock: s.lock }));
-const saveSetup = (state) => saveJson(SETUP_KEY, JSON.stringify(state));
-if (s.onboard) saveSetup({ started: true });
+let setupState = s.onboard ? 'started' : 'done';
+const saveSetup = (state) => {
+  setupState = state || setupState;
+  saveJson(SETUP_KEY, JSON.stringify({ [setupState]: true, access: s.access }));
+};
+if (s.onboard) saveSetup('started');
 
 function toast(key, params) {
   toastEl.textContent = i18n.tx(key, params);
@@ -608,10 +613,10 @@ const actions = {
 
   // ----- Optional features, data sources, backup -----
   // ----- First-run setup -----
-  'onboard-start'() {
-    s.onboard = startOnboarding();
-    saveSetup({ started: true });
-    return go(`#/${s.view}`);
+  /** From the settings to the floors and rooms editor on the home screen. */
+  'rooms-edit'() {
+    s.planEdit = true;
+    return go('#/home');
   },
   'onboard-back': () => moveStep(s.onboard, 'back'),
   'onboard-next'() {
@@ -625,19 +630,23 @@ const actions = {
   /** Leave the setup. What was chosen so far stays; everything is in the settings too. */
   'onboard-skip'() {
     s.onboard = null;
-    saveSetup({ done: true });
+    saveSetup('done');
     commit();
     toast('toast.setupDone');
   },
   // The next three are designs of what the backend will do. Nothing is contacted.
-  'onboard-connect'() {
-    s.onboard.connected = true;
+  'access-connect'() {
+    s.access.connected = true;
+    saveSetup();
   },
-  'onboard-signin'(mode) {
-    if (SIGNIN_MODES.includes(mode)) s.onboard.signin = mode;
+  'access-signin'(mode) {
+    if (!SIGNIN_MODES.includes(mode)) return;
+    s.access.signin = mode;
+    saveSetup();
   },
-  'onboard-pair'() {
-    s.onboard.paired = true;
+  'access-pair'() {
+    s.access.paired = true;
+    saveSetup();
   },
   'onboard-room'(roomId) {
     if (d.rooms[roomId]) toggleRoom(s.onboard, roomId);

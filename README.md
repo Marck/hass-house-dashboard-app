@@ -54,7 +54,7 @@ Then open <http://localhost:4173>. The script also prints an address for a table
 | Edit, in the floor plan card | Add, rename, reorder and remove floors and rooms; move rooms between floors |
 | Room settings, in a room | Name, floor, linked Home Assistant areas, and which entities the room shows |
 | Settings, the gear at the top right | Child lock, the optional EV charging card with an entity per statistic, the UniFi and Zigbee network sources, which speakers and speaker groups the music card manages, export and import, diagnostics, and the version and commit that is running |
-| First start on a clean device | A short setup: language, theme, rooms, optional features and child lock. Connection and sign-in are shown as designs. Run it again from the settings |
+| First start on a clean device | A short setup: language, theme, rooms, optional features and child lock. Connection and sign-in are shown as designs. It runs once; everything in it is also in the settings |
 | Music card | Tabs appear when several speakers play; "Group speakers" makes a temporary group from speakers that support it; "Stop casting" stops the selected speaker or group only |
 | Lock, shown while the child lock is on | Press and hold for 3 seconds, or enter the PIN, to unlock |
 

@@ -12,7 +12,8 @@ const row = (ic, title, help, control, cls = '') => `<div class="tile ed-row${cl
 
 const demo = (t) => `<p class="menu-note is-warn">${t('onboard.demoNote')}</p>`;
 
-function welcome({ s, t }) {
+/** Language and theme of this device. */
+export function deviceChoices({ s, t }) {
   return `<p class="field-label">${t('lang.button')}</p>
     ${seg(t('lang.button'), LANGS.map((lang) => ({ label: t(`lang.name.${lang}`), on: s.lang === lang, attrs: act('lang', lang) })), 'seg-full')}
     <p class="field-label">${t('onboard.theme')}</p>
@@ -20,21 +21,21 @@ function welcome({ s, t }) {
 }
 
 function connection({ s, d, t, f }) {
-  const o = s.onboard;
+  const o = s.access;
   const found = t('onboard.connection.found', { areas: f.num(Object.keys(d.ha.areas).length), entities: f.num(Object.keys(d.ha.entities).length) });
   return `${row('home', t('onboard.connection.name'), o.connected ? `<i class="dot is-ok"></i> ${found}` : t('onboard.connection.none'),
-    `<button type="button" class="btn${o.connected ? '' : ' btn-solid'}" ${act('onboard-connect')}><span>${t(o.connected ? 'onboard.connection.again' : 'onboard.connection.connect')}</span></button>`)}
+    `<button type="button" class="btn${o.connected ? '' : ' btn-solid'}" ${act('access-connect')}><span>${t(o.connected ? 'onboard.connection.again' : 'onboard.connection.connect')}</span></button>`)}
     <p class="muted ed-gap">${t('onboard.connection.help')}</p>${demo(t)}`;
 }
 
 function signin({ s, t }) {
-  const o = s.onboard;
-  const modes = SIGNIN_MODES.map((mode) => `<button type="button" class="tile ed-row opt${o.signin === mode ? ' is-on' : ''}" aria-pressed="${o.signin === mode}" ${act('onboard-signin', mode)}>
+  const o = s.access;
+  const modes = SIGNIN_MODES.map((mode) => `<button type="button" class="tile ed-row opt${o.signin === mode ? ' is-on' : ''}" aria-pressed="${o.signin === mode}" ${act('access-signin', mode)}>
       <span class="ic-box">${icon(mode === 'hass' ? 'home' : 'lock')}</span>
       <span class="ed-name"><b>${t(`onboard.signin.${mode}`)}</b><small>${t(`onboard.signin.${mode}Help`)}</small></span>${o.signin === mode ? icon('check') : ''}</button>`).join('');
   const pair = row('link', t('onboard.pair.title'), o.paired ? `<i class="dot is-ok"></i> ${t('onboard.pair.done')}` : t('onboard.pair.help'),
     o.paired ? '' : `<span class="pair-code" aria-label="${t('onboard.pair.code')}">${esc(PAIR_DEMO_CODE)}</span>
-      <button type="button" class="btn" ${act('onboard-pair')}><span>${t('onboard.pair.approve')}</span></button>`, ' ed-wrap');
+      <button type="button" class="btn" ${act('access-pair')}><span>${t('onboard.pair.approve')}</span></button>`, ' ed-wrap');
   return `<div class="ed-list" role="group" aria-label="${t('onboard.step.signin')}">${modes}</div>
     ${eyebrow(t('onboard.pair.heading'))}${pair}${demo(t)}`;
 }
@@ -68,7 +69,11 @@ function lock({ s, t }) {
     <p class="muted ed-gap">${t('onboard.lock.help')}</p>`;
 }
 
-const STEP_VIEWS = { welcome, connection, signin, rooms, features, lock };
+const STEP_VIEWS = { welcome: deviceChoices, connection, signin, rooms, features, lock };
+
+/** The same connection and sign-in choices, as a part of the settings. */
+export const accessSettings = (c) => `<section>${eyebrow(c.t('onboard.step.connection'))}${connection(c)}</section>
+  <section>${eyebrow(c.t('onboard.step.signin'))}${signin(c)}</section>`;
 
 export function onboardSheet(c) {
   const { s, t, f } = c;
@@ -81,6 +86,7 @@ export function onboardSheet(c) {
     <header class="sheet-head"><div><p class="kicker">${t('onboard.progress', { n: f.num(o.step + 1), total: f.num(ONBOARD_STEPS.length) })}</p>
       <h2 id="sheet-title">${t(`onboard.step.${step}`)}</h2><p class="lead">${t(`onboard.lead.${step}`)}</p></div></header>
     <div class="onboard-dots" aria-hidden="true">${dots}</div>
+    <p class="muted onboard-hint">${icon('gear')}<span>${t('onboard.inSettings')}</span></p>
     ${STEP_VIEWS[step](c)}
     <div class="btn-row onboard-nav">
       <button type="button" class="btn"${o.step === 0 ? ' disabled' : ''} ${act('onboard-back')}>${icon('back')}<span>${t('onboard.back')}</span></button>
