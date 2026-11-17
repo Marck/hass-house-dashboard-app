@@ -689,11 +689,11 @@ Mark a task complete only when acceptance evidence exists. Do not mark work comp
 | Area | Status | Notes |
 |---|---|---|
 | Phase 0: Preparation | Done | Stack chosen, repository and privacy baseline in place; see `docs/` |
-| Phase 1: Design/mockup | Done | Merged on 2026-11-15; not yet tested on the real target devices |
+| Phase 1: Design/mockup | Done, extended | Merged 2026-11-15. Added since: settings, child lock and build info (5.8), multi-speaker music (5.9), first-run setup (5.10). Runs on the iPad Air 2 through the preview; the full device checklist is not done |
 | Phase 2: Local application | Approved, waiting for the owner's go | The owner put testing on the iPad first (2026-11-16). Starts with read-only discovery; commands to real devices are tested only with the owner present |
-| Phase 3: Cluster deployment | Preview only | The early preview (section 7.0) is approved; everything else is blocked |
+| Phase 3: Cluster deployment | Preview live | Stage 1 of 7.0 runs in the cluster since 2026-11-16 behind the identity provider (own namespace, Pod Security restricted, no egress). Everything else is blocked |
 | Privacy baseline | In place | `scripts/privacy-check.mjs` runs in every verify; see `docs/security-and-privacy.md` |
-| Target-device testing | Not started | Emulated viewports only so far; iPad Air 2 and iPhone 13 still to do |
+| Target-device testing | Started | iPad Air 2: the preview opens after login (2026-11-16). The identity provider's login needed a fix for Safari 15. `docs/device-testing.md` not yet run in full; iPhone 13 not started |
 
 ### Approval log
 
@@ -730,6 +730,16 @@ Append an entry whenever meaningful work is completed:
 - Blockers: none for Phase 1. Not tested on a real iPad Air 2 or iPhone 13.
 - Approval needed: review of Phase 1, then explicit approval before any Phase 2 work (live Home Assistant, `ha-mcp` discovery).
 
+## Progress update: 2026-11-17
+
+- Phase: 1 extensions and the early preview (7.0, stage 1).
+- Status: preview live on the wall tablet; Phase 2 still waits for the owner's go.
+- Completed: settings with child lock, version and commit, diagnostics (2.11, 5.8); multi-speaker music card with tabs or a list, groups, temporary groups and stop casting (2.12, 5.9); first-run setup whose choices are all in the settings (2.13, 5.10); credits for the design inspiration in the README; preview image published by a manual workflow for amd64 and arm64; Helm chart in the owner's repository; the identity provider now sends Safari 15 and older to its simplified login page, so the iPad can log in.
+- Tests/evidence: `scripts/verify.sh` passes (lint, 84 unit tests, privacy check); browser checks per feature; the chart's test boots the pinned image as the pod runs it; the login redirect is tested in the cluster's Traefik version and confirmed live; the owner logged in on the iPad.
+- Privacy/security review: passed for every change. Images hold demo data only, no token anywhere.
+- Blockers: none.
+- Approval needed: go for Phase 2. Decisions for it: how speaker group members are learned (2.12), sign-in mode and pairing (2.13), whether the backend lives in the Home Assistant namespace or its own (7.0).
+
 ## 12. Open questions / required inputs
 
 Resolve these at the appropriate gate; do not block the planning document on details that can safely wait.
@@ -743,7 +753,7 @@ Resolve these at the appropriate gate; do not block the planning document on det
 - [ ] Confirm minimum browser versions after checking iPad Air 2 installed iOS/Safari version. Assumed Safari 15 (iPadOS 15.8 is the last release for that model); the installed version is not confirmed.
 - [ ] Phase 2: confirm which Zigbee integration is in use and which fields the UniFi and Zigbee integrations expose through Home Assistant.
 - [ ] Phase 2: which of the owner's speakers report the grouping capability, and how group membership is learned (section 2.12).
-- [ ] Phase 3: confirm NetworkPolicy enforcement in the cluster, whether Home Assistant uses host networking, and that the identity provider's login page works in Safari 15.
+- [ ] Phase 3: confirm NetworkPolicy enforcement in the cluster and whether Home Assistant uses host networking. (Answered 2026-11-16: the identity provider's normal login page does not work in Safari 15; its simplified page does, and the cluster now redirects old Safari there.)
 
 ## 13. Definition of done
 
