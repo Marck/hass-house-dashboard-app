@@ -22,6 +22,14 @@ export const DATA = {
   ],
 };
 
+// Live states in Home Assistant's compressed form. The camera's picture carries
+// a token, as the real one does; the backend must drop it.
+const CAM = ['cam', 'token', 'not', 'real'].join('-');
+export const STATES = {
+  'light.lamp_one': { s: 'on', a: { brightness: 200, friendly_name: 'Lamp one' }, c: 'ctx1', lc: 1 },
+  'camera.door_one': { s: 'idle', a: { entity_picture: '/api/camera_proxy/camera.door_one?token=' + CAM, ['access_token']: CAM }, c: { id: 'ctx2', user_id: 'user-not-real' }, lc: 2 },
+};
+
 function frame(text) {
   const body = Buffer.from(text);
   const head = body.length < 126 ? Buffer.from([0x81, body.length])
@@ -52,9 +60,10 @@ function parse(buf) {
 }
 
 /** Starts the fake. `token` is the one it accepts. */
-export async function startFakeHa({ token = TOKEN, data = DATA } = {}) {
+export async function startFakeHa({ token = TOKEN, data = DATA, states = STATES } = {}) {
   const received = [];
   const sockets = new Set();
+  const subscribers = new Set(); // { say, id }
   const server = createServer((req, res) => { res.writeHead(404); res.end(); });
   server.on('upgrade', (req, socket) => {
     if (req.url !== '/api/websocket') return socket.destroy();
@@ -76,6 +85,13 @@ export async function startFakeHa({ token = TOKEN, data = DATA } = {}) {
           if (!authed) socket.end();
         } else if (!authed) socket.destroy();
         else if (msg.type === 'ping') say({ id: msg.id, type: 'pong' });
+        else if (msg.type === 'subscribe_entities') {
+          say({ id: msg.id, type: 'result', success: true, result: null });
+          say({ id: msg.id, type: 'event', event: { a: states } });
+          const sub = { say, id: msg.id };
+          subscribers.add(sub);
+          socket.on('close', () => subscribers.delete(sub));
+        }
         else if (data[msg.type]) say({ id: msg.id, type: 'result', success: true, result: data[msg.type] });
         else say({ id: msg.id, type: 'result', success: false, error: { code: 'unknown_command', message: 'Unknown command.' } });
       }
@@ -90,6 +106,8 @@ export async function startFakeHa({ token = TOKEN, data = DATA } = {}) {
     url: `ws://127.0.0.1:${server.address().port}/api/websocket`,
     port: server.address().port,
     received,
+    /** Sends a state message ({ a, c, r }) to every subscriber. */
+    pushStates: (event) => { for (const sub of subscribers) sub.say({ id: sub.id, type: 'event', event }); },
     /** Cuts every open connection, as a restart of Home Assistant would. */
     dropAll: () => { for (const s of sockets) s.destroy(); },
     close: () => new Promise((done) => { for (const s of sockets) s.destroy(); server.close(done); }),
