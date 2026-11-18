@@ -81,8 +81,10 @@ const s = {
 };
 s.locked = s.lock.enabled;
 const d = createFixture();
-// The configuration (names the user typed, links to areas and entities) stays in
-// this browser in Phase 1. It is never sent anywhere.
+// The configuration (names the user typed, links to areas and entities). With
+// a backend that signs people in it belongs to the household and lives there
+// (see syncConfig below); this browser keeps a copy so it starts at once. Without
+// one it stays in this browser and is never sent anywhere.
 // A clean device starts with the setup. A locked one never does: it was set up before.
 if (!s.locked && needsOnboarding(loadJson(CONFIG_KEY), loadJson(SETUP_KEY))) s.onboard = startOnboarding();
 let cfg = normalizeConfig(loadJson(CONFIG_KEY), d);
@@ -238,6 +240,80 @@ function commit() {
   saveJson(CONFIG_KEY, serializeConfig(cfg));
   applyConfig(d, cfg);
   route();
+  pushConfig();
+}
+
+// The household's configuration on the backend. `revision` is the version this
+// browser last saw; a save based on an older one is refused, so a tablet that
+// was offline cannot undo an edit made on a phone.
+const server = { on: false, revision: 0, pushing: false, again: false, warned: false };
+
+/** Use the backend's configuration when it is newer than what this browser shows. */
+function adopt(state) {
+  if (!state || !state.config || state.revision === server.revision) return;
+  server.revision = state.revision;
+  cfg = normalizeConfig(state.config, d);
+  saveJson(CONFIG_KEY, serializeConfig(cfg));
+  // The household is set up already: this device skips the setup.
+  if (s.onboard) {
+    s.onboard = null;
+    saveSetup('done');
+  }
+  applyConfig(d, cfg);
+  route();
+  render();
+}
+
+/** Send this browser's configuration; one save at a time, the last one wins. */
+function pushConfig() {
+  if (!server.on) return;
+  if (!s.me || s.me.kind !== 'person') {
+    // A paired device reads the household's configuration but does not change it.
+    if (!server.warned) toast('toast.configLocal');
+    server.warned = true;
+    return;
+  }
+  if (server.pushing) {
+    server.again = true;
+    return;
+  }
+  server.pushing = true;
+  window.fetch('/api/config', {
+    method: 'PUT', credentials: 'same-origin', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ revision: server.revision, config: cfg }),
+  })
+    .then(async (res) => {
+      const body = await res.json().catch(() => null);
+      if (res.ok && body) server.revision = body.revision;
+      else if (res.status === 409) {
+        server.again = false;
+        adopt(body);
+        toast('toast.configNewer');
+      } else toast('toast.configNotSaved');
+    })
+    .catch(() => toast('toast.configNotSaved'))
+    .finally(() => {
+      server.pushing = false;
+      if (server.again) {
+        server.again = false;
+        pushConfig();
+      }
+    });
+}
+
+/** Load the household's configuration; the first time, move this browser's own there. */
+function syncConfig() {
+  if (s.edit) return; // never swap the configuration under an open editor
+  window.fetch('/api/config', { credentials: 'same-origin', cache: 'no-store' })
+    .then((res) => (res.ok ? res.json() : null))
+    .then((state) => {
+      if (!state) return;
+      const first = !server.on;
+      server.on = true;
+      if (state.config) adopt(state);
+      else if (first && loadJson(CONFIG_KEY) && s.me && s.me.kind === 'person') pushConfig();
+    })
+    .catch(() => {});
 }
 
 const go = (hash) => {
@@ -956,5 +1032,7 @@ window.fetch('/api/me', { credentials: 'same-origin' })
     s.me = { signedIn: true, kind: me.kind === 'device' ? 'device' : 'person', name: String(me.name || '') };
     render();
     if (s.me.kind === 'person') loadDevices();
+    syncConfig();
+    setInterval(syncConfig, 60_000);
   })
   .catch(() => {});

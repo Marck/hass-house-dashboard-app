@@ -46,7 +46,7 @@ function parseCookies(header = '') {
 export const normalizeCode = (text) => String(text || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
 const newCode = () => Array.from({ length: 8 }, () => CODE_ALPHABET[randomInt(CODE_ALPHABET.length)]).join('');
 
-function readJson(req, limit = 2048) {
+export function readJson(req, limit = 2048) {
   return new Promise((done) => {
     let body = '';
     req.setEncoding('utf8');
@@ -262,5 +262,5 @@ export function createAuth({ issuer, publicUrl, clientId, clientSecret, devices,
     return json(res, 404, { error: 'not found' }), true;
   }
 
-  return { handle, handleApi, session, sessionCount: () => sessions.size };
+  return { handle, handleApi, session, foreign, sessionCount: () => sessions.size };
 }

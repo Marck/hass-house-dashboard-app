@@ -80,7 +80,7 @@ export const PUBLIC_PATHS = new Set(['/welcome.html', '/pair.html', '/js/pair.js
  * With it, everything but /healthz, the sign-in routes and PUBLIC_PATHS needs a
  * person or a paired device.
  */
-export function createHandler({ mode, root, auth = null, ha = null, log = console }) {
+export function createHandler({ mode, root, auth = null, ha = null, configStore = null, log = console }) {
   // The frontend names its own build (Settings, About); this says what the server runs.
   const info = JSON.stringify({ mode, auth: auth ? 'oidc' : 'none' });
   async function serve(req, res) {
@@ -96,6 +96,7 @@ export function createHandler({ mode, root, auth = null, ha = null, log = consol
       return res.end();
     }
     if (who && await auth.handleApi(req, res, url, who)) return;
+    if (who && configStore && await configStore.handle(req, res, url, who, auth.foreign)) return;
     if (!read) return send(res, 405, 'text/plain; charset=utf-8', 'method not allowed\n', { Allow: 'GET, HEAD' });
     if (pathname === '/api/info') return send(res, 200, TYPES['.json'], info);
     if (pathname === '/api/me') {

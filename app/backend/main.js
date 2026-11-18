@@ -7,28 +7,34 @@
 // HASS_URL and HASS_TOKEN_FILE or HASS_TOKEN),
 // STATIC_DIR (default app/frontend), AUTH_MODE (none or oidc) and, for oidc,
 // OIDC_ISSUER, OIDC_CLIENT_ID, OIDC_CLIENT_SECRET, PUBLIC_URL, SESSION_HOURS and
-// DATA_DIR (default /data, where the paired devices are kept).
+// DATA_DIR (default /data: the paired devices and the household's configuration).
 // It logs no request data and no token.
 import { createServer } from 'node:http';
 import { createHandler, settings } from './app.js';
 import { authSettings, createAuth } from './auth.js';
 import { createDevices, jsonFile } from './devices.js';
 import { createHa, haSettings } from './ha.js';
+import { createConfigStore } from './config-store.js';
 
 let config;
 let auth = null;
 let ha = null;
+let configStore = null;
 try {
   config = settings(process.env);
   const sign = authSettings(process.env);
   if (config.mode === 'live') ha = createHa(haSettings(process.env));
-  if (sign.mode === 'oidc') auth = createAuth({ ...sign, devices: createDevices({ store: jsonFile(`${sign.dataDir}/devices.json`) }) });
+  if (sign.mode === 'oidc') {
+    auth = createAuth({ ...sign, devices: createDevices({ store: jsonFile(`${sign.dataDir}/devices.json`) }) });
+    // The household's configuration; without sign-in it stays in each browser.
+    configStore = createConfigStore({ store: jsonFile(`${sign.dataDir}/config.json`) });
+  }
 } catch (error) {
   console.error(`Not started: ${error.message}`);
   process.exit(1);
 }
 
-const server = createServer(createHandler({ ...config, auth, ha }));
+const server = createServer(createHandler({ ...config, auth, ha, configStore }));
 server.headersTimeout = 10_000;
 server.requestTimeout = 30_000;
 server.listen(config.port, config.host, () => {

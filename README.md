@@ -76,7 +76,7 @@ Rules the UI follows:
 - A configured entity that does not exist shows "Entity not found" with its ID.
 - All configuration happens in the UI. There is no YAML or file editing. Export and import cover backup and moving to another device.
 
-In Phase 1 the configuration is stored in the browser (`localStorage`), per device.
+With sign-in on, the configuration is kept by the backend and shared by every phone and tablet; the first person to sign in brings the configuration of their browser along. Without sign-in (the plain demo) it stays in the browser (`localStorage`), per device. A paired tablet shows the household's configuration; changes made on it stay on that tablet.
 
 The child lock is for a wall tablet within reach of small children. It belongs to the device, blocks controls at a level you choose, and locks again by itself. It guards against accidents; it is not a security feature.
 
