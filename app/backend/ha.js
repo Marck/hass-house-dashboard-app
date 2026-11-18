@@ -1,6 +1,7 @@
 // The connection to Home Assistant, read-only. One WebSocket, authenticated
 // with a long-lived token of a dedicated non-admin user. It reconnects with
-// backoff and keeps the registries (floors, areas, devices, entities) in memory.
+// backoff and keeps the registries (floors, areas, devices, entities) and the
+// live states in memory.
 //
 // Read-only is enforced here, not trusted to the token: the only messages this
 // module can send are the authentication, a ping (keep-alive) and the commands
@@ -8,13 +9,32 @@
 // Neither the token nor the Home Assistant address is logged or returned.
 import { readFileSync } from 'node:fs';
 
-/** Every command this connection may send. Nothing here can change anything. */
-export const READ = Object.freeze([
+/** The registry lists, loaded on every connect and every 15 minutes. */
+export const LISTS = Object.freeze([
   'config/floor_registry/list',
   'config/area_registry/list',
   'config/device_registry/list',
   'config/entity_registry/list',
 ]);
+
+/** Every command this connection may send. Nothing here can change anything. */
+export const READ = Object.freeze([...LISTS, 'subscribe_entities']);
+
+// Attributes that can carry a credential (a camera's or media player's
+// entity_picture holds an access token) never leave the backend.
+const SECRET_ATTR = /^entity_picture$|token|password|secret/i;
+const BATCH_MS = 500;
+
+/**
+ * One state as the browser gets it: the state, its attributes without
+ * credentials, and when it last changed. Home Assistant's context (which user
+ * did it) is dropped.
+ */
+export function cleanState(compressed) {
+  const attributes = {};
+  for (const [key, value] of Object.entries((compressed && compressed.a) || {})) if (!SECRET_ATTR.test(key)) attributes[key] = value;
+  return { s: String(compressed && compressed.s), a: attributes, lc: Number(compressed && (compressed.lc || compressed.lu)) || null };
+}
 
 const COMMAND_MS = 30_000;
 const PING_MS = 30_000;
@@ -75,6 +95,12 @@ export function createHa({ url, token, WebSocketImpl = globalThis.WebSocket, log
   let version = null;
   let since = null;
   let registry = null;
+  const states = new Map(); // entity id -> compressed state as Home Assistant sent it
+  const listeners = new Set();
+  let subId = null;
+  let fresh = false; // the next state message of this subscription is the full list
+  let pending = null; // { reset, set: Set, remove: Set } until the next batch
+  let batchTimer = null;
   let loadedAt = null;
   let nextId = 1;
   let lastSeen = 0;
@@ -111,12 +137,71 @@ export function createHa({ url, token, WebSocketImpl = globalThis.WebSocket, log
 
   async function load() {
     try {
-      const [floors, areas, devices, entities] = await Promise.all(READ.map(command));
+      const [floors, areas, devices, entities] = await Promise.all(LISTS.map(command));
       registry = shapeRegistry({ floors, areas, devices, entities });
       loadedAt = now();
     } catch (error) {
       log.warn(`home assistant: registry not loaded (${error.message.startsWith('refused') ? 'refused' : error.message})`);
     }
+  }
+
+  /** Tell the listeners what changed, at most every BATCH_MS: chatty sensors would flood a tablet. */
+  function queue(change) {
+    pending = pending || { reset: false, set: new Set(), remove: new Set() };
+    if (change.reset) Object.assign(pending, { reset: true, set: new Set(), remove: new Set() });
+    for (const id of change.set || []) { pending.set.add(id); pending.remove.delete(id); }
+    for (const id of change.remove || []) { pending.remove.add(id); pending.set.delete(id); }
+    if (!batchTimer) batchTimer = timers.setTimeout(flush, BATCH_MS);
+  }
+
+  function flush() {
+    batchTimer = null;
+    if (!pending) return;
+    const out = pending.reset ? { reset: true, set: snapshot() }
+      : { set: Object.fromEntries([...pending.set].filter((id) => states.has(id)).map((id) => [id, cleanState(states.get(id))])), remove: [...pending.remove] };
+    pending = null;
+    for (const fn of listeners) {
+      try {
+        fn(out);
+      } catch {
+        // One broken listener must not stop the others.
+      }
+    }
+  }
+
+  const snapshot = () => Object.fromEntries([...states].map(([id, st]) => [id, cleanState(st)]));
+
+  /** Home Assistant's state message: a = added (full), c = changed (diff), r = removed. */
+  function onStates(event) {
+    if (fresh) {
+      fresh = false;
+      states.clear();
+      for (const [id, st] of Object.entries(event.a || {})) states.set(id, st);
+      return queue({ reset: true });
+    }
+    const set = [];
+    for (const [id, st] of Object.entries(event.a || {})) { states.set(id, st); set.push(id); }
+    for (const [id, diff] of Object.entries(event.c || {})) {
+      const old = states.get(id);
+      if (!old) continue;
+      const add = diff['+'] || {};
+      const next = { ...old, a: { ...(old.a || {}), ...(add.a || {}) } };
+      if ('s' in add) next.s = add.s;
+      if ('lc' in add) next.lc = add.lc;
+      for (const key of (diff['-'] && diff['-'].a) || []) delete next.a[key];
+      states.set(id, next);
+      set.push(id);
+    }
+    for (const id of event.r || []) states.delete(id);
+    queue({ set, remove: event.r || [] });
+  }
+
+  function subscribe() {
+    const type = 'subscribe_entities';
+    if (!READ.includes(type)) return;
+    subId = nextId++;
+    fresh = true;
+    send({ id: subId, type });
   }
 
   function clearTimers() {
@@ -185,6 +270,12 @@ export function createHa({ url, token, WebSocketImpl = globalThis.WebSocket, log
       }, PING_MS);
       refreshTimer = timers.setInterval(load, REFRESH_MS);
       load();
+      subscribe();
+      return;
+    }
+    if (msg.type === 'event' && msg.id === subId && msg.event) return onStates(msg.event);
+    if (msg.type === 'result' && msg.id === subId && !msg.success) {
+      log.warn(`home assistant: live states refused (${String(msg.error && msg.error.code).slice(0, 40)})`);
       return;
     }
     const w = msg.type === 'result' && waiting.get(msg.id);
@@ -221,13 +312,22 @@ export function createHa({ url, token, WebSocketImpl = globalThis.WebSocket, log
     stop() {
       setState('stopped');
       timers.clearTimeout(retryTimer);
+      timers.clearTimeout(batchTimer);
+      batchTimer = null;
       drop('stopped');
     },
     command,
     status() {
       const counts = registry && { floors: registry.floors.length, areas: registry.areas.length, devices: registry.devices, entities: registry.entities.length };
-      return { state, since, version, loadedAt, counts: counts || null };
+      return { state, since, version, loadedAt, counts: counts || null, states: state === 'connected' && !fresh ? states.size : null };
     },
     registry: () => registry,
+    /** Every state, without credentials or context. */
+    states: () => (state === 'connected' && !fresh ? snapshot() : null),
+    /** fn({ reset, set, remove }) after each batch; returns a function that stops it. */
+    onChange(fn) {
+      listeners.add(fn);
+      return () => listeners.delete(fn);
+    },
   };
 }

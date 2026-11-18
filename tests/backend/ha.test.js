@@ -7,6 +7,7 @@ import { join } from 'node:path';
 import { createHa, haSettings, READ, shapeRegistry } from '../../app/backend/ha.js';
 import { createHandler, settings } from '../../app/backend/app.js';
 import { startFakeHa, TOKEN, DATA } from './fake-ha.js';
+import { cleanState } from '../../app/backend/ha.js';
 
 // Backoff and timeouts run 100 times faster here.
 const fast = {
@@ -147,4 +148,68 @@ test('/api/ha serves status and registry without the token or address', async ()
   for (const body of [status.body, registry.body]) {
     assert.ok(!body.includes(TOKEN) && !body.includes(String(fake.port)) && !body.includes('127.0.0.1'));
   }
+});
+
+test('live states: loaded, kept current, and never with a credential or who did it', async () => {
+  const changes = [];
+  const ha = createHa({ url: fake.url, token: () => TOKEN, log: quiet().log, timers: fast });
+  ha.onChange((c) => changes.push(c));
+  ha.start();
+  await until(() => ha.states());
+  const all = ha.states();
+  assert.deepEqual(Object.keys(all).sort(), ['camera.door_one', 'light.lamp_one']);
+  assert.deepEqual(all['camera.door_one'], { s: 'idle', a: {}, lc: 2 }, 'picture with token, access token and context dropped');
+  assert.equal(ha.status().states, 2);
+  await until(() => changes.some((c) => c.reset));
+  fake.pushStates({ c: { 'light.lamp_one': { '+': { s: 'off', a: { brightness: 0 }, lc: 3 }, '-': { a: ['friendly_name'] } } } });
+  fake.pushStates({ a: { 'sensor.new_one': { s: '21', a: {}, lc: 4 } }, r: ['camera.door_one'] });
+  await until(() => changes.some((c) => c.remove && c.remove.length));
+  const last = changes.filter((c) => !c.reset);
+  const set = Object.assign({}, ...last.map((c) => c.set));
+  assert.deepEqual(set['light.lamp_one'], { s: 'off', a: { brightness: 0 }, lc: 3 });
+  assert.deepEqual(set['sensor.new_one'], { s: '21', a: {}, lc: 4 });
+  assert.ok(last.some((c) => c.remove.includes('camera.door_one')));
+  assert.ok(!ha.states()['camera.door_one']);
+  ha.stop();
+  const text = JSON.stringify(changes);
+  assert.ok(!text.includes('cam-token-not-real') && !text.includes('user-not-real'));
+});
+
+test('after a reconnect the browser gets every state again', async () => {
+  const changes = [];
+  const ha = createHa({ url: fake.url, token: () => TOKEN, log: quiet().log, timers: fast });
+  ha.onChange((c) => changes.push(c));
+  ha.start();
+  await until(() => changes.some((c) => c.reset));
+  changes.length = 0;
+  fake.dropAll();
+  await until(() => changes.some((c) => c.reset), 5000);
+  ha.stop();
+});
+
+test('cleanState keeps ordinary attributes and drops anything that looks like a credential', () => {
+  const st = cleanState({ s: 'playing', a: { volume_level: 0.4, entity_picture: '/x?token=y', api_token: 'z', Password: 'p' }, c: 'ctx', lu: 9 });
+  assert.deepEqual(st, { s: 'playing', a: { volume_level: 0.4 }, lc: 9 });
+});
+
+test('/api/ha/stream sends every state, then the changes', async () => {
+  const ha = createHa({ url: fake.url, token: () => TOKEN, log: quiet().log, timers: fast });
+  const server = createServer(createHandler({ mode: 'live', root: dir, ha }));
+  await new Promise((done) => server.listen(0, '127.0.0.1', done));
+  ha.start();
+  await until(() => ha.states());
+  let text = '';
+  const req = request({ host: '127.0.0.1', port: server.address().port, path: '/api/ha/stream' }, (res) => {
+    assert.match(res.headers['content-type'], /^text\/event-stream/);
+    res.on('data', (c) => { text += c; });
+  });
+  req.end();
+  await until(() => text.includes('event: states'));
+  fake.pushStates({ a: { 'switch.one': { s: 'on', a: {}, lc: 5 } } });
+  await until(() => text.includes('event: change'));
+  req.destroy();
+  ha.stop();
+  server.close();
+  assert.ok(!text.includes('cam-token-not-real'));
+  assert.match(text, /event: change\ndata: \{"set":\{"switch\.one"/);
 });
