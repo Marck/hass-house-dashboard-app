@@ -1,6 +1,6 @@
 # Phase 2 architecture and breakdown
 
-Status: approved 2026-11-17. The owner gave the go for Phase 2 and decided: OIDC sign-in (A5), a Node backend (A1), device sessions of 30 days (A7), and the Home Assistant account as the local sign-in instead of the dashboard's own accounts (A6). Steps 1 to 3 are built.
+Status: approved 2026-11-17. The owner gave the go for Phase 2 and decided: OIDC sign-in (A5), a Node backend (A1), device sessions of 30 days (A7), and the Home Assistant account as the local sign-in instead of the dashboard's own accounts (A6). Steps 1 to 4 are built.
 
 ## Decisions
 
@@ -60,7 +60,7 @@ Each step is one or a few small pull requests, merged only with green checks, an
 1. **Backend skeleton** (done): serves the frontend with the same headers nginx did, `/healthz`, `/api/info`, the mode fixed at startup (demo only; it refuses to start with any Home Assistant setting). It replaces nginx in the image. The configuration store moved to step 5, where it is first used.
 2. **Sign-in and sessions** (done): OIDC with PKCE, state and nonce (`oauth4webapi`, no further dependencies); person sessions of 12 hours kept in memory, so a restart signs people out until pairing (step 3) brings a store; logout; tests against a fake identity provider for every refusal. Still demo data.
 3. **Pairing** (done): without a session a visitor chooses between signing in and pairing. The tablet shows an 8-character code (5 minutes) bound to it by a cookie; a signed-in person types it under Settings, Devices, names the device and confirms. The device session lasts 30 days from its last use and is kept (hashed) in `DATA_DIR/devices.json`, so restarts keep tablets in. A device cannot pair or remove devices; five wrong codes block a person for five minutes. Still to do: the Safari 15 cookie test on the tablet.
-4. **Home Assistant connection, read-only:** token from the environment, WebSocket connect and reconnect, registry discovery (areas, devices, entities). Nothing can be commanded.
+4. **Home Assistant connection, read-only** (built): `DASHBOARD_MODE=live`, token from a mounted file, WebSocket connect, reconnect with backoff and a keep-alive, registry discovery (floors, areas, devices, entities) refreshed on every connect and every 15 minutes. Only the commands in `READ` can be sent; tested against a fake Home Assistant. A non-admin user suffices (checked in the 2026.11.1 source). Live in the cluster once the owner has made the user and token.
 5. **Configuration in the backend:** a JSON store with atomic replace (A10), room-to-area links, entity rules, export and import, migration from the browser-stored configuration, first-run setup once per installation.
 6. **Live states:** subscription, reconnect, unavailable and missing entities.
 7. **Energy and climate, read-only.**

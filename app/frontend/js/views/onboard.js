@@ -21,7 +21,19 @@ export function deviceChoices({ s, t }) {
     ${seg(t('onboard.theme'), MODES.map((mode) => ({ label: t(`theme.mode.${mode}`), on: s.theme.mode === mode, attrs: act('theme-mode', mode) })), 'seg-full')}`;
 }
 
+/** The real connection of a live backend. It is set up on the server, so there is nothing to press. */
+function liveConnection({ s, t, f }) {
+  const h = s.ha;
+  const ok = h.state === 'connected';
+  const text = ok && h.loaded ? t('onboard.connection.live', { areas: f.num(h.areas), entities: f.num(h.entities) })
+    : t(`onboard.connection.${{ connected: 'connecting', auth_failed: 'authFailed' }[h.state] || h.state}`);
+  const dot = ok ? 'is-ok' : h.state === 'connecting' ? 'is-warn' : 'is-off';
+  return `${row('home', t('onboard.connection.name'), `<i class="dot ${dot}"></i> ${text}`, '')}
+    <p class="muted ed-gap">${t('onboard.connection.liveHelp')}</p>`;
+}
+
 function connection({ s, d, t, f }) {
+  if (s.ha) return liveConnection({ s, t, f });
   const o = s.access;
   const found = t('onboard.connection.found', { areas: f.num(Object.keys(d.ha.areas).length), entities: f.num(Object.keys(d.ha.entities).length) });
   return `${row('home', t('onboard.connection.name'), o.connected ? `<i class="dot is-ok"></i> ${found}` : t('onboard.connection.none'),

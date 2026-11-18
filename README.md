@@ -32,7 +32,7 @@ Requirements, decisions and the approval log are in [PROJECT_PLAN.md](PROJECT_PL
 | Run the checks | podman or docker, or Node 26 |
 | Use it | Safari 15 or newer, or a current Chrome, Edge or Firefox |
 
-No account, API key or token is needed yet.
+The demo needs no account, API key or token. Live mode needs a Home Assistant token of a dedicated non-admin user; see [docs/deployment.md](docs/deployment.md).
 
 ## Run it locally
 

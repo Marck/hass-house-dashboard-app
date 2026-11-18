@@ -76,6 +76,7 @@ const s = {
   access: normalizeAccess((loadJson(SETUP_KEY) || {}).access), // connection and sign-in choices (designs)
   me: null, // who is signed in, from the backend; null without one
   devices: null, // paired devices, for a signed-in person
+  ha: null, // the backend's Home Assistant connection, in live mode only
   pairForm: { code: '', name: '' },
 };
 s.locked = s.lock.enabled;
@@ -929,6 +930,24 @@ function loadDevices() {
     })
     .catch(() => {});
 }
+
+const HA_STATES = ['connecting', 'connected', 'auth_failed', 'unreachable', 'stopped'];
+
+/** The live connection's state, for the settings. A demo backend answers 404. */
+function loadHa() {
+  window.fetch('/api/ha', { credentials: 'same-origin', cache: 'no-store' })
+    .then((res) => (res.ok ? res.json() : null))
+    .then((body) => {
+      if (!body || !HA_STATES.includes(body.state)) return;
+      const n = (v) => (Number.isFinite(v) ? v : 0);
+      const c = body.counts || {};
+      s.ha = { state: body.state, areas: n(c.areas), entities: n(c.entities), loaded: Boolean(body.counts) };
+      render();
+    })
+    .catch(() => {});
+}
+loadHa();
+setInterval(loadHa, 60_000);
 
 window.fetch('/api/me', { credentials: 'same-origin' })
   .then((res) => (res.ok ? res.json() : null))

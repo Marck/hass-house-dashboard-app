@@ -10,7 +10,7 @@ Only the **early preview** is approved: the demo in the cluster, so the dashboar
 | Chart | `apps/house-dashboard` in the owner's Helm repository | Written, waiting for the owner's merge |
 | Rollout | A merge there, synced by the cluster's GitOps tooling | Nothing is deployed |
 
-The image runs the Node backend (`app/backend`), which serves the frontend and the demo data. In this phase it runs in demo mode only: it has no Home Assistant code and refuses to start when any `HASS_` or `HOME_ASSISTANT_` setting is present. It runs as a non-root user with a read-only root filesystem and writes nothing; the chart's `/tmp` `emptyDir` is harmless and kept. It listens on port 8080 and answers `/healthz` for probes. Since 2026-11-17 the preview signs people in itself with OIDC against authentik (`AUTH_MODE=oidc`); there is no forward-auth at the ingress any more. Its only outbound connections are DNS and authentik.
+The image runs the Node backend (`app/backend`), which serves the frontend and the demo data. In demo mode (the default) it refuses to start when any `HASS_` or `HOME_ASSISTANT_` setting is present. In live mode it reads Home Assistant, read-only (see below). It runs as a non-root user with a read-only root filesystem and writes nothing; the chart's `/tmp` `emptyDir` is harmless and kept. It listens on port 8080 and answers `/healthz` for probes. Since 2026-11-17 the preview signs people in itself with OIDC against authentik (`AUTH_MODE=oidc`); there is no forward-auth at the ingress any more. Its only outbound connections are DNS and authentik.
 
 The chart runs it in its own namespace: Pod Security `restricted`, inbound from the ingress controller and the uptime monitor only, no egress, the image pinned by digest. Its test boots the pinned image the way the pod runs it.
 
@@ -35,7 +35,10 @@ Settings, About in the running dashboard shows the commit the image was built fr
 | Variable | Default | Meaning |
 |---|---|---|
 | `PORT` | `8080` | Listening port |
-| `DASHBOARD_MODE` | `demo` | Only `demo` exists so far |
+| `HOST` | all interfaces | Listening address; `127.0.0.1` for local development |
+| `DASHBOARD_MODE` | `demo` | `demo`, or `live` to read Home Assistant. `live` needs `AUTH_MODE=oidc`, or `HOST=127.0.0.1` |
+| `HASS_URL` | | Live: the http(s) address of Home Assistant, for example its Service inside the cluster. Never sent to the browser |
+| `HASS_TOKEN_FILE` | | Live: file holding the long-lived token (a mounted Secret). Preferred over `HASS_TOKEN`; set exactly one. Re-read on every reconnect |
 | `AUTH_MODE` | `none` | `oidc` turns on the backend's own sign-in; everything but `/healthz` then needs a session |
 | `OIDC_ISSUER` | | Issuer URL of the identity provider, https only. For authentik: `https://<authentik host>/application/o/<slug>/` |
 | `OIDC_CLIENT_ID` | | Client id of the provider |
@@ -45,6 +48,22 @@ Settings, About in the running dashboard shows the commit the image was built fr
 | `DATA_DIR` | `/data` | Where the paired devices are kept (`devices.json`). Needs a writable volume; losing it means pairing the tablets again |
 
 Any variable starting with `HASS_` or `HOME_ASSISTANT_` stops the demo from starting.
+
+### Live mode: the Home Assistant user and token
+
+1. In Home Assistant, Settings, People, add a person with "Can log in" on and "Administrator" off. A non-admin user is enough: listing floors, areas, devices and entities needs no admin rights (checked in the 2026.11.1 source).
+2. Log in as that user, open its profile, Security, and create a long-lived access token. Copy it once; it is not shown again.
+3. Seal it straight from the clipboard, so it never lands in a file or the shell history (macOS shown):
+
+   ```bash
+   pbpaste | tr -d '\n' | kubeseal --raw --controller-name sealed-secrets --controller-namespace kubeseal --scope namespace-wide --namespace <dashboard namespace>
+   ```
+
+4. Put the output in the chart's sealed Secret and mount it; point `HASS_TOKEN_FILE` at the mounted file.
+
+The backend connects over Home Assistant's WebSocket API and can send only the authentication, a keep-alive ping and the four registry list commands (`READ` in `app/backend/ha.js`); anything else is refused before it is sent. Signed-in people and paired devices get the state at `/api/ha` and the registry at `/api/ha/registry`; Settings shows the state. The pod needs egress to the Home Assistant API port, and Home Assistant's namespace must admit the dashboard's.
+
+For local development: `DASHBOARD_MODE=live HOST=127.0.0.1 HASS_URL=http://<address>:8123 HASS_TOKEN_FILE=<file outside the repo> node app/backend/main.js`.
 
 In authentik, create an OAuth2/OpenID provider (confidential client, authorization code, redirect URI as above, scopes `openid profile`) and an application bound to the group that may use the dashboard. The pod needs egress to the identity provider.
 

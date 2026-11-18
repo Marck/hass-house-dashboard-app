@@ -1,12 +1,12 @@
 // The dashboard backend's request handler: the frontend, /healthz, /api/info,
-// /api/me and, with OIDC on, the sign-in routes. Only the demo mode exists, so
-// nothing here can reach Home Assistant.
+// /api/me, with OIDC on the sign-in routes and, in live mode, the read-only
+// Home Assistant status and registry (/api/ha, /api/ha/registry).
 import { createReadStream } from 'node:fs';
 import { stat } from 'node:fs/promises';
 import { extname, join, resolve, sep } from 'node:path';
 import { NOTICE_CSP, notice } from './notice.js';
 
-export const MODES = ['demo'];
+export const MODES = ['demo', 'live'];
 
 const TYPES = {
   '.html': 'text/html; charset=utf-8',
@@ -35,12 +35,18 @@ export function settings(env) {
   const mode = env.DASHBOARD_MODE || 'demo';
   if (!MODES.includes(mode)) throw new Error(`DASHBOARD_MODE must be one of: ${MODES.join(', ')}`);
   // A demo must not hold a Home Assistant credential, not even an unused one.
-  if (Object.keys(env).some((key) => /^(HASS|HOME_ASSISTANT)_/.test(key))) {
+  if (mode === 'demo' && Object.keys(env).some((key) => /^(HASS|HOME_ASSISTANT)_/.test(key))) {
     throw new Error('a Home Assistant setting is present; the demo refuses to start with one');
   }
   const port = Number(env.PORT || 8080);
   if (!Number.isInteger(port) || port < 1 || port > 65535) throw new Error('PORT must be a port number');
-  return { mode, port, root: resolve(env.STATIC_DIR || new URL('../frontend', import.meta.url).pathname) };
+  // No HOST: Node's default, every interface (IPv6 when the kernel has it).
+  const host = env.HOST || undefined;
+  // Live data never goes out without sign-in, except to this machine itself.
+  if (mode === 'live' && (env.AUTH_MODE || 'none') === 'none' && !['127.0.0.1', '::1', 'localhost'].includes(host)) {
+    throw new Error('live mode needs AUTH_MODE=oidc, or HOST=127.0.0.1 for local development');
+  }
+  return { mode, port, host, root: resolve(env.STATIC_DIR || new URL('../frontend', import.meta.url).pathname) };
 }
 
 function send(res, status, type, body, extra = {}) {
@@ -74,7 +80,7 @@ export const PUBLIC_PATHS = new Set(['/welcome.html', '/pair.html', '/js/pair.js
  * With it, everything but /healthz, the sign-in routes and PUBLIC_PATHS needs a
  * person or a paired device.
  */
-export function createHandler({ mode, root, auth = null, log = console }) {
+export function createHandler({ mode, root, auth = null, ha = null, log = console }) {
   // The frontend names its own build (Settings, About); this says what the server runs.
   const info = JSON.stringify({ mode, auth: auth ? 'oidc' : 'none' });
   async function serve(req, res) {
@@ -95,6 +101,12 @@ export function createHandler({ mode, root, auth = null, log = console }) {
     if (pathname === '/api/me') {
       const me = who ? { signedIn: true, via: 'oidc', kind: who.kind, name: who.name } : { signedIn: false, via: 'none' };
       return send(res, 200, TYPES['.json'], JSON.stringify(me), { 'Cache-Control': 'no-store' });
+    }
+    if (ha && pathname === '/api/ha') return send(res, 200, TYPES['.json'], JSON.stringify(ha.status()), { 'Cache-Control': 'no-store' });
+    if (ha && pathname === '/api/ha/registry') {
+      const registry = ha.registry();
+      if (!registry) return send(res, 503, TYPES['.json'], '{"error":"not loaded"}', { 'Cache-Control': 'no-store' });
+      return send(res, 200, TYPES['.json'], JSON.stringify(registry), { 'Cache-Control': 'no-store' });
     }
     if (pathname.startsWith('/api/')) return send(res, 404, TYPES['.json'], '{"error":"not found"}');
 

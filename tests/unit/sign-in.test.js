@@ -10,6 +10,16 @@ test('settings show who is signed in, with a way to sign out, only when the back
   assert.ok(!render({ state: { settings: true } }).includes('sign-out'), 'no backend sign-in: no sign-out');
 });
 
+test('a live backend shows its real Home Assistant connection, read-only, with nothing to press', () => {
+  const live = render({ state: { settings: true, ha: { state: 'connected', areas: 7, entities: 120, loaded: true } } });
+  assert.ok(live.includes('read-only: 7 areas and 120 entities'));
+  assert.ok(!live.includes('data-action="access-connect"'), 'no connect button for a server-side connection');
+  assert.ok(live.includes('Set up on the server'));
+  const refused = render({ state: { settings: true, ha: { state: 'auth_failed', areas: 0, entities: 0, loaded: false } } });
+  assert.ok(refused.includes('refused the token') && refused.includes('dot is-off'));
+  assert.ok(render({ state: { settings: true } }).includes('data-action="access-connect"'), 'the demo keeps its design');
+});
+
 test('a signed-in person pairs a tablet and sees the paired devices; a tablet only sees that it is paired', () => {
   const devices = [{ id: 'd1', name: 'Hall <tablet>', created: 0, lastSeen: 0 }];
   const person = render({ state: { settings: true, me: { signedIn: true, kind: 'person', name: 'A' }, devices, pairForm: { code: 'ab', name: '' } } });
