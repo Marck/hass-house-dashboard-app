@@ -2,7 +2,7 @@ import { icon, FLAGS } from '../icons.js';
 import { LANGS } from '../i18n/index.js';
 import { MODES, SUN_STATES } from '../theme.js';
 import { netViews } from '../config.js';
-import { act, seg } from './parts.js';
+import { act, seg, canEditConfig } from './parts.js';
 import { editBar } from './editor.js';
 import { lockFloat } from './lock.js';
 
@@ -41,7 +41,8 @@ export function shell(c, body, overlay) {
     .map(([id, ic]) => `<a class="seg-item${s.view === id ? ' is-on' : ''}" href="#/${id}"${s.view === id ? ' aria-current="page"' : ''} data-fid="nav:${id}">${icon(ic)}<span>${t(`nav.${id}`)}</span></a>`).join('');
   const hidden = overlay ? ' aria-hidden="true"' : '';
   // While the child lock is on the bar is empty: the lock itself floats (lockFloat).
-  const actions = s.locked ? '' : `<button type="button" class="btn btn-compact${s.edit ? ' is-on' : ''}" aria-pressed="${s.edit}" aria-label="${t('layout.edit')}" ${act('edit-layout')}>${icon('edit')}<span>${t('layout.edit')}</span></button>
+  const editLayout = canEditConfig(s) ? `<button type="button" class="btn btn-compact${s.edit ? ' is-on' : ''}" aria-pressed="${s.edit}" aria-label="${t('layout.edit')}" ${act('edit-layout')}>${icon('edit')}<span>${t('layout.edit')}</span></button>` : '';
+  const actions = s.locked ? '' : `${editLayout}
         <div class="menu-root" data-menu-root>
           <button type="button" class="btn" aria-haspopup="true" aria-expanded="${s.menu === 'lang'}" ${act('menu', 'lang')}>${icon('globe')}<span>${t('lang.button')}</span></button>
           ${s.menu === 'lang' ? langMenu(c) : ''}

@@ -3,7 +3,7 @@ import { icon } from '../icons.js';
 import { homeSummary, roomSummary } from '../model.js';
 import { floorplan, roomStatusText } from '../art/floorplan.js';
 import { sunArc } from '../charts.js';
-import { act, seg, live, cardGrid, roomName, roomNameRaw, floorName } from './parts.js';
+import { act, seg, live, cardGrid, roomName, roomNameRaw, floorName, canEditConfig } from './parts.js';
 import { planEditor } from './editor.js';
 import { musicCard } from './music.js';
 
@@ -107,7 +107,7 @@ export function homeView(c) {
   const camChip = d.rooms[cam.roomId]
     ? `<button type="button" class="chip chip-btn" ${act('room', cam.roomId)}>${icon('camera')}${roomName(c, cam.roomId)} <b class="is-purple">${t(cam.eventKey)} ${f.time(cam.at.h, cam.at.m)}</b></button>` : '';
   const floorTabs = seg(t('plan.floors'), d.floors.map((fl) => ({ label: floorName(c, fl), on: fl.id === floor.id, attrs: act('floor', fl.id) })), 'seg-wrap');
-  const editBtn = `<button type="button" class="btn${s.planEdit ? ' is-on' : ''}" aria-pressed="${s.planEdit}" ${act('plan-edit')}>${icon('edit')}<span>${t(s.planEdit ? 'common.done' : 'common.edit')}</span></button>`;
+  const editBtn = !canEditConfig(s) ? '' : `<button type="button" class="btn${s.planEdit ? ' is-on' : ''}" aria-pressed="${s.planEdit}" ${act('plan-edit')}>${icon('edit')}<span>${t(s.planEdit ? 'common.done' : 'common.edit')}</span></button>`;
 
   return `<div class="page-head"><div><h1>${t('home.title')}</h1><p class="lead">${lead.join(' ')}</p></div></div>
     <ul class="people" aria-label="${t('home.people')}">${people}</ul>

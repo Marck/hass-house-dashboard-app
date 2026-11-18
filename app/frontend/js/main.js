@@ -237,6 +237,14 @@ function route() {
 
 /** Store the configuration and rebuild everything derived from it. */
 function commit() {
+  // A paired tablet has no way to edit; should a change slip through, undo it.
+  if (server.on && s.me && s.me.kind === 'device') {
+    cfg = normalizeConfig(loadJson(CONFIG_KEY), d);
+    applyConfig(d, cfg);
+    route();
+    toast('toast.configOnPhone');
+    return;
+  }
   saveJson(CONFIG_KEY, serializeConfig(cfg));
   applyConfig(d, cfg);
   route();
@@ -246,7 +254,7 @@ function commit() {
 // The household's configuration on the backend. `revision` is the version this
 // browser last saw; a save based on an older one is refused, so a tablet that
 // was offline cannot undo an edit made on a phone.
-const server = { on: false, revision: 0, pushing: false, again: false, warned: false };
+const server = { on: false, revision: 0, pushing: false, again: false };
 
 /** Use the backend's configuration when it is newer than what this browser shows. */
 function adopt(state) {
@@ -267,12 +275,7 @@ function adopt(state) {
 /** Send this browser's configuration; one save at a time, the last one wins. */
 function pushConfig() {
   if (!server.on) return;
-  if (!s.me || s.me.kind !== 'person') {
-    // A paired device reads the household's configuration but does not change it.
-    if (!server.warned) toast('toast.configLocal');
-    server.warned = true;
-    return;
-  }
+  if (!s.me || s.me.kind !== 'person') return;
   if (server.pushing) {
     server.again = true;
     return;

@@ -6,7 +6,7 @@ import { roomEntities, evStats, netModel, netStats } from '../model.js';
 import { EV_SLOTS, EV_ACCEPTS, NET_SOURCES, hiddenCards, netSources } from '../config.js';
 import { LOCK_SCOPES, LOCK_METHODS, LOCK_IDLE_MINUTES, PIN_LENGTH } from '../lock.js';
 import { BUILD } from '../build-info.js';
-import { act, toggle, seg, select, eyebrow, sheet, textInput, roomNameRaw, floorName, floorNameRaw, showId } from './parts.js';
+import { act, toggle, seg, select, eyebrow, sheet, textInput, roomNameRaw, floorName, floorNameRaw, showId, canEditConfig } from './parts.js';
 import { musicSettings } from './music.js';
 import { deviceChoices, accessSettings } from './onboard.js';
 import { evValueText, SLOT_ICONS } from './ev.js';
@@ -204,6 +204,12 @@ export function settingsSheet(c) {
   const device = `<section>${eyebrow(t('settings.device'))}${deviceChoices(c)}</section>`;
   const rooms = `<section>${eyebrow(t('settings.rooms'))}<p class="muted">${t('settings.rooms.hint')}</p>
       <div class="btn-row"><button type="button" class="btn" ${act('rooms-edit')}>${icon('edit')}<span>${t('settings.rooms.open')}</span></button></div></section>`;
+  // A paired tablet keeps its own settings; the household's are changed on a phone.
+  if (!canEditConfig(s)) {
+    return sheet(c, head, `${device}${accessSettings(c)}${lockSection(c)}
+      <section>${eyebrow(t('settings.household'))}<p class="menu-note">${t('settings.householdOnPhone')}</p></section>
+      ${diagnosticsSection(c)}${aboutSection(c)}`);
+  }
   return sheet(c, head, `${device}${accessSettings(c)}${rooms}${lockSection(c)}<section>${eyebrow(t('card.ev'), t(evOn ? 'common.on' : 'common.off'))}
       <div class="tile ed-row"><span class="ic-box">${icon('car')}</span><span class="ed-name"><b>${t('settings.ev.show')}</b><small>${t('settings.ev.showHelp')}</small></span>
         ${toggle({ on: evOn, label: t('settings.ev.show'), action: 'card-toggle', arg: 'ev' })}</div>
