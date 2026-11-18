@@ -750,6 +750,13 @@ Append an entry whenever meaningful work is completed:
 - Approval needed: go for Phase 2. Decisions for it: how speaker group members are learned (2.12), sign-in mode and pairing (2.13), whether the backend lives in the Home Assistant namespace or its own (7.0).
 - Later that day: go given. Decided: Node backend, OIDC sign-in, 30-day device sessions. Step 1 done: the image now runs a Node backend (demo only, no Home Assistant code) instead of nginx.
 
+## Progress update: 2026-11-18
+
+- Approval: the owner gave the go for step 4, the read-only Home Assistant connection, including connecting to the live instance.
+- Completed: steps 2 and 3 (OIDC sign-in, pairing) are live; every page uses the site's style (2.14); step 4 built: live mode with a read-only WebSocket client, tested against a fake Home Assistant.
+- Verified: a non-admin user may list floors, areas, devices and entities (Home Assistant 2026.11.1 source, no admin check on those commands).
+- Blockers: the dedicated Home Assistant user and its token are made by the owner; then the chart switches the preview to live mode.
+
 ## 12. Open questions / required inputs
 
 Resolve these at the appropriate gate; do not block the planning document on details that can safely wait.

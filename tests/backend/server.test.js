@@ -101,11 +101,11 @@ test('nothing outside the site is served', async () => {
   assert.equal(resolvePath(`${root}`, '/../site-other/x'), null, 'a sibling with the same prefix is outside');
 });
 
-test('settings: demo only, and no Home Assistant credential', () => {
+test('settings: demo by default, and a demo holds no Home Assistant credential', () => {
   const ok = settings({ STATIC_DIR: root });
   assert.equal(ok.mode, 'demo');
   assert.equal(ok.port, 8080);
-  assert.throws(() => settings({ DASHBOARD_MODE: 'live' }), /DASHBOARD_MODE/);
+  assert.throws(() => settings({ DASHBOARD_MODE: 'mock' }), /DASHBOARD_MODE/);
   assert.throws(() => settings({ HASS_TOKEN: 'x' }), /Home Assistant/);
   assert.throws(() => settings({ HOME_ASSISTANT_URL: 'x' }), /Home Assistant/);
   for (const port of ['0', '70000', 'abc']) assert.throws(() => settings({ PORT: port }), /PORT/, port);
