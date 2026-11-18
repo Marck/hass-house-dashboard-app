@@ -755,7 +755,8 @@ Append an entry whenever meaningful work is completed:
 - Approval: the owner gave the go for step 4, the read-only Home Assistant connection, including connecting to the live instance.
 - Completed: steps 2 and 3 (OIDC sign-in, pairing) are live; every page uses the site's style (2.14); step 4 built: live mode with a read-only WebSocket client, tested against a fake Home Assistant.
 - Verified: a non-admin user may list floors, areas, devices and entities (Home Assistant 2026.11.1 source, no admin check on those commands).
-- Blockers: the dedicated Home Assistant user and its token are made by the owner; then the chart switches the preview to live mode.
+- Live: the preview runs in live mode and is connected to Home Assistant (2026.11.1), read-only. Token: the non-admin one Mira uses, resealed for the dashboard (owner's choice); rotating it in Mira means resealing it for the dashboard too.
+- Decided: step 5 gets a "Connect" button that signs in at Home Assistant as the dedicated user and lets the backend make its own token.
 
 ## 12. Open questions / required inputs
 
