@@ -2,7 +2,7 @@
 import { icon } from '../icons.js';
 import { roomSummary, lightState, acPhase } from '../model.js';
 import { thermoScale } from '../charts.js';
-import { act, toggle, seg, eyebrow, roomName, floorName, showId } from './parts.js';
+import { act, toggle, seg, eyebrow, roomName, floorName, showId, canEditConfig } from './parts.js';
 
 const MODE_ICONS = { auto: 'auto', cool: 'snow', dry: 'drop', heat: 'flame', fan: 'fan' };
 const FANS = ['auto', 'low', 'medium', 'high'];
@@ -133,7 +133,7 @@ function powerSection(c, id, missing) {
 /** Problems with the room's configuration that have no section of their own. */
 function configBanners(c, id, others) {
   const { d, t } = c;
-  const open = `<button type="button" class="btn" ${act('room-config', id)}>${icon('gear')}<span>${t('roomcfg.open')}</span></button>`;
+  const open = canEditConfig(c.s) ? `<button type="button" class="btn" ${act('room-config', id)}>${icon('gear')}<span>${t('roomcfg.open')}</span></button>` : '';
   const areas = d.rooms[id].missingAreas.map((areaId) => `<div class="banner is-warn" role="status"><span class="ic-box">${icon('alert')}</span>
     <p><b>${t('area.missing')}</b><small class="mono">${showId(areaId)}</small></p>${open}</div>`);
   const entities = others.map((eid) => `<div class="banner is-warn" role="status"><span class="ic-box">${icon('alert')}</span>
@@ -173,7 +173,7 @@ export function roomSheet(c, id) {
       ${configBanners(c, id, others)}
       ${body || `<p class="plan-empty">${t('room.empty')}</p>`}
       <footer class="sheet-foot"><span class="muted">${t('common.live', { time: f.time(d.now.h, d.now.m) })}</span>
-        <span class="btn-row"><button type="button" class="btn" ${act('room-config', id)}>${icon('gear')}<span>${t('roomcfg.open')}</span></button>
+        <span class="btn-row">${canEditConfig(c.s) ? `<button type="button" class="btn" ${act('room-config', id)}>${icon('gear')}<span>${t('roomcfg.open')}</span></button>` : ''}
         <button type="button" class="btn" ${act('more')}>${icon('external')}<span>${t('room.more')}</span></button></span></footer>
     </div>`;
 }

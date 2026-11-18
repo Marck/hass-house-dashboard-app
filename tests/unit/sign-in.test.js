@@ -20,6 +20,17 @@ test('a live backend shows its real Home Assistant connection, read-only, with n
   assert.ok(render({ state: { settings: true } }).includes('data-action="access-connect"'), 'the demo keeps its design');
 });
 
+test('a paired tablet shows no way to change the household layout; a person does', () => {
+  const tablet = render({ state: { settings: true, me: { signedIn: true, kind: 'device', name: 'Hall' } } });
+  for (const action of ['edit-layout', 'plan-edit', 'rooms-edit', 'card-toggle', 'net-source', 'config-reset', 'room-config']) {
+    assert.ok(!tablet.includes(`data-action="${action}"`), action);
+  }
+  assert.ok(tablet.includes('changed on a phone'), 'it says where to change it');
+  assert.ok(tablet.includes('data-action="theme-mode"'), 'its own settings stay');
+  const person = render({ state: { settings: true, me: { signedIn: true, kind: 'person', name: 'A' } } });
+  for (const action of ['edit-layout', 'plan-edit', 'rooms-edit']) assert.ok(person.includes(`data-action="${action}"`), action);
+});
+
 test('a signed-in person pairs a tablet and sees the paired devices; a tablet only sees that it is paired', () => {
   const devices = [{ id: 'd1', name: 'Hall <tablet>', created: 0, lastSeen: 0 }];
   const person = render({ state: { settings: true, me: { signedIn: true, kind: 'person', name: 'A' }, devices, pairForm: { code: 'ab', name: '' } } });

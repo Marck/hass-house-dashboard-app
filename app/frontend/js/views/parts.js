@@ -6,6 +6,9 @@ import { LABEL_MAX } from '../config.js';
  * Attributes for an interactive element. data-fid is a stable id used to put
  * keyboard focus back on the same control after a re-render.
  */
+/** A paired tablet shows the household's configuration but does not change it; that is done on a phone. */
+export const canEditConfig = (s) => !(s.me && s.me.kind === 'device');
+
 export function act(action, arg = '', val = '') {
   const a = esc(arg);
   const v = esc(val);
