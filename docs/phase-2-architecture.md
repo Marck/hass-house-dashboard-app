@@ -61,7 +61,7 @@ Each step is one or a few small pull requests, merged only with green checks, an
 2. **Sign-in and sessions** (done): OIDC with PKCE, state and nonce (`oauth4webapi`, no further dependencies); person sessions of 12 hours kept in memory, so a restart signs people out until pairing (step 3) brings a store; logout; tests against a fake identity provider for every refusal. Still demo data.
 3. **Pairing** (done): without a session a visitor chooses between signing in and pairing. The tablet shows an 8-character code (5 minutes) bound to it by a cookie; a signed-in person types it under Settings, Devices, names the device and confirms. The device session lasts 30 days from its last use and is kept (hashed) in `DATA_DIR/devices.json`, so restarts keep tablets in. A device cannot pair or remove devices; five wrong codes block a person for five minutes. Still to do: the Safari 15 cookie test on the tablet.
 4. **Home Assistant connection, read-only** (built): `DASHBOARD_MODE=live`, token from a mounted file, WebSocket connect, reconnect with backoff and a keep-alive, registry discovery (floors, areas, devices, entities) refreshed on every connect and every 15 minutes. Only the commands in `READ` can be sent; tested against a fake Home Assistant. A non-admin user suffices (checked in the 2026.11.1 source). Live since 2026-11-18, with the non-admin token Mira also uses, resealed for the dashboard's namespace.
-5. **Configuration in the backend:** a JSON store with atomic replace (A10), room-to-area links, entity rules, export and import, migration from the browser-stored configuration, first-run setup once per installation. Also a "Connect" button in the setup (decided 2026-11-18): someone signs in at Home Assistant as the dedicated non-admin user, and the backend makes and stores its own token, so nobody copies or seals one. First verify how long a token made that way lasts, and keep the sealed token as the fallback.
+5. **Configuration in the backend:** a JSON store with atomic replace (A10), room-to-area links, entity rules, export and import, migration from the browser-stored configuration, first-run setup once per installation. In live mode the setup's connection step shows the server's connection state; there is nothing to connect from the browser.
 6. **Live states:** subscription, reconnect, unavailable and missing entities.
 7. **Energy and climate, read-only.**
 8. **Network sources** (UniFi, Zigbee), after checking which fields they really expose.
@@ -69,6 +69,14 @@ Each step is one or a few small pull requests, merged only with green checks, an
 10. **Commands:** allow-list, audit of what is offered, confirmation for anything that affects more than one device; tested with the owner present, never by automated tests on real devices.
 
 Then Phase 3: chart for the backend, network policies as above, sealed Secret.
+
+### Parked: a "Connect" button
+
+Discussed and parked on 2026-11-18. The idea: someone signs in at Home Assistant as the dedicated user and the backend keeps its own token, so nobody copies or seals one.
+
+- For: installs without GitOps or sealed secrets; a credential of its own that Home Assistant lists and revokes separately; rotation without a change in git.
+- Against: no gain where the token comes from a Secret; signing in as yourself would give the dashboard admin rights; the browser needs Home Assistant's own address next to the internal one; the token lives on the volume, outside git; two ways in to test and document.
+- If it is ever built: the Home Assistant address comes from the server configuration only, never from a request; admin users are refused; a token from the Secret always wins; only a signed-in person may use it, never a paired device. First verify how long a token obtained this way lasts.
 
 ## Tests
 

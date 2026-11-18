@@ -209,7 +209,7 @@ Checked against the Home Assistant source (`cast/media_player.py` and `media_pla
   - Behind a sign-in proxy: the backend trusts the identity the proxy passes on, and only from that proxy.
   - Home Assistant account: people sign in at Home Assistant with the account they have.
 - Device pairing for a wall tablet: the tablet shows a short-lived code, a signed-in person approves it on another device, and the tablet gets its own long-lived session that can be revoked. Reason: on 2026-11-16 the identity provider's login page did not render on the iPad Air 2 (Safari 15) and its session ends when the browser closes.
-- No access token is typed into the dashboard during setup. The connection uses the Home Assistant sign-in, or in a cluster the token from a Secret. This keeps the rule that the browser never handles a Home Assistant credential.
+- No access token is typed into the dashboard during setup. The connection uses the token from a Secret, set up on the server (a sign-in at Home Assistant from the setup is parked, 2026-11-18). This keeps the rule that the browser never handles a Home Assistant credential.
 - Not verified: whether Home Assistant's own sign-in page renders on Safari 15. If it does not, pairing is the only way in for that tablet.
 
 ### 2.14 One style for every page (added 2026-11-17)
@@ -756,7 +756,7 @@ Append an entry whenever meaningful work is completed:
 - Completed: steps 2 and 3 (OIDC sign-in, pairing) are live; every page uses the site's style (2.14); step 4 built: live mode with a read-only WebSocket client, tested against a fake Home Assistant.
 - Verified: a non-admin user may list floors, areas, devices and entities (Home Assistant 2026.11.1 source, no admin check on those commands).
 - Live: the preview runs in live mode and is connected to Home Assistant (2026.11.1), read-only. Token: the non-admin one Mira uses, resealed for the dashboard (owner's choice); rotating it in Mira means resealing it for the dashboard too.
-- Decided: step 5 gets a "Connect" button that signs in at Home Assistant as the dedicated user and lets the backend make its own token.
+- Decided: no "Connect" button in step 5. It is parked as an optional feature for installs without GitOps, with its trade-offs in `docs/phase-2-architecture.md`. Step 5 is the backend configuration store.
 
 ## 12. Open questions / required inputs
 
@@ -769,6 +769,7 @@ Resolve these at the appropriate gate; do not block the planning document on det
 - [x] Confirm whether dashboard is a separate in-namespace service or a sidecar. Decision 2026-11-15: separate Deployment in the Home Assistant namespace (section 2.6).
 - [ ] Confirm desired LAN/VPN access enforcement point during Phase 3 review. Direction 2026-11-15: forward auth at the ingress. Replaced 2026-11-17: OIDC by the backend (or a Home Assistant account), live in the preview.
 - [ ] Confirm minimum browser versions after checking iPad Air 2 installed iOS/Safari version. Assumed Safari 15 (iPadOS 15.8 is the last release for that model); the installed version is not confirmed.
+- [ ] Owner: create a second long-lived token for the dashboard's Home Assistant user and seal it for the dashboard, so it no longer shares Mira's token and each can be revoked on its own.
 - [ ] Phase 2: confirm which Zigbee integration is in use and which fields the UniFi and Zigbee integrations expose through Home Assistant.
 - [ ] Phase 2: which of the owner's speakers report the grouping capability, and how group membership is learned (section 2.12).
 - [x] Phase 3: NetworkPolicy is enforced (verified 2026-11-01 in the helm-charts repo) and Home Assistant does not use host networking (checked 2026-11-17, read-only). (Answered 2026-11-16: the identity provider's normal login page does not work in Safari 15; its simplified page does, and the cluster now redirects old Safari there.)
