@@ -218,6 +218,13 @@ Checked against the Home Assistant source (`cast/media_player.py` and `media_pla
 - Plain text or JSON is only for responses that are never shown as a page: `/healthz`, the API and requests made by the page's own script.
 - A new page or server response for a browser follows this before it ships. Tests check it: every frontend HTML file loads the tokens, and the server's notice pages load the shared stylesheet.
 
+### 2.15 Sheets close with a pull down (added 2026-11-19)
+
+- Every sheet (room, settings, music, setup and the other panels that slide up) shows the iOS-style handle at the top, which suggests that pulling down closes it. That must be true: dragging the sheet down by its handle or header follows the finger, and letting go past a threshold, or with a quick flick, closes it. Otherwise it springs back.
+- A pull that starts inside scrolled content scrolls that content; only at its top does a further pull move the sheet, as on iOS.
+- Works with touch on Safari 15 (iPad Air 2) and current iPhone Safari, and with a mouse drag on desktop. The close button and Escape stay.
+- Respects reduced motion (no spring animation, it simply closes). A sheet that must not be dismissed by accident (an unsaved form, a confirmation, the child lock PIN) asks or ignores the pull instead.
+
 ## 3. Proposed technical approach
 
 Validate this proposal against the architecture diagram and older-device compatibility before selecting final technologies.
@@ -493,6 +500,7 @@ Not started. Needs the owner's go like the rest of Phase 2.
 - [ ] Setup once per installation in the backend; device steps per device.
 - [ ] Threat review of all three before use outside the local network.
 - [x] Signed-out, sign-in-failed, not-found and error pages in the site's style with EN/NL (2.14).
+- [ ] Sheets close with a pull down on the handle (2.15); checked on the iPad Air 2 and an iPhone.
 
 ### Phase 2 deliverables
 
