@@ -19,6 +19,7 @@ export const DATA = {
     { entity_id: 'light.lamp_one', area_id: 'living', device_id: null, name: 'Lamp one', original_name: null, disabled_by: null, hidden_by: null },
     { entity_id: 'sensor.temp_one', area_id: null, device_id: 'dev1', name: null, original_name: 'Temperature', disabled_by: null, hidden_by: 'user' },
     { entity_id: 'switch.off_one', area_id: null, device_id: null, name: 'Disabled', disabled_by: 'user', hidden_by: null },
+    { entity_id: 'switch.setting_one', area_id: 'living', device_id: null, name: 'Auto update', disabled_by: null, hidden_by: null, entity_category: 'config' },
   ],
 };
 

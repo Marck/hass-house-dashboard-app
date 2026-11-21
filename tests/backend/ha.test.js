@@ -4,7 +4,16 @@ import { createServer, request } from 'node:http';
 import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { createHa, haSettings, READ, shapeRegistry } from '../../app/backend/ha.js';
+import { createHa as makeHa, haSettings, READ, shapeRegistry } from '../../app/backend/ha.js';
+
+// Every client a test makes is stopped at the end, also when an assertion
+// fails half way: a running client would keep the test process alive.
+const made = [];
+const createHa = (options) => {
+  const ha = makeHa(options);
+  made.push(ha);
+  return ha;
+};
 import { createHandler, settings } from '../../app/backend/app.js';
 import { startFakeHa, TOKEN, DATA } from './fake-ha.js';
 import { cleanState } from '../../app/backend/ha.js';
@@ -32,7 +41,7 @@ const until = async (check, ms = 3000) => {
 let fake;
 const dir = mkdtempSync(join(tmpdir(), 'hhd-ha-'));
 before(async () => { fake = await startFakeHa(); });
-after(async () => { await fake.close(); rmSync(dir, { recursive: true, force: true }); });
+after(async () => { made.forEach((ha) => ha.stop()); await fake.close(); rmSync(dir, { recursive: true, force: true }); });
 
 test('settings: the address becomes the WebSocket URL; one token source; values never in errors', () => {
   const file = join(dir, 'token');
@@ -66,8 +75,9 @@ test('the browser gets areas per entity, also through the device, and no disable
     devices: DATA['config/device_registry/list'], entities: DATA['config/entity_registry/list'],
   });
   assert.deepEqual(r.entities, [
-    { id: 'light.lamp_one', domain: 'light', name: 'Lamp one', area: 'living', hidden: false },
-    { id: 'sensor.temp_one', domain: 'sensor', name: 'Temperature', area: 'kitchen', hidden: true },
+    { id: 'light.lamp_one', domain: 'light', name: 'Lamp one', area: 'living', hidden: false, category: null },
+    { id: 'sensor.temp_one', domain: 'sensor', name: 'Temperature', area: 'kitchen', hidden: true, category: null },
+    { id: 'switch.setting_one', domain: 'switch', name: 'Auto update', area: 'living', hidden: false, category: 'config' },
   ]);
   assert.deepEqual(r.areas[0], { id: 'living', name: 'Living room', floor: 'ground' });
   assert.equal(r.devices, 1);
@@ -82,7 +92,7 @@ test('connects, loads the registries and sends nothing but reads', async () => {
   const status = ha.status();
   assert.equal(status.state, 'connected');
   assert.equal(status.version, '2026.11.1');
-  assert.deepEqual(status.counts, { floors: 1, areas: 2, devices: 1, entities: 2 });
+  assert.deepEqual(status.counts, { floors: 1, areas: 2, devices: 1, entities: 3 });
   await assert.rejects(ha.command('call_service'), /refused/);
   await assert.rejects(ha.command('config/area_registry/create'), /refused/);
   ha.stop();
@@ -144,7 +154,7 @@ test('/api/ha serves status and registry without the token or address', async ()
   ha.stop();
   server.close();
   assert.equal(JSON.parse(status.body).state, 'connected');
-  assert.equal(JSON.parse(registry.body).entities.length, 2);
+  assert.equal(JSON.parse(registry.body).entities.length, 3);
   for (const body of [status.body, registry.body]) {
     assert.ok(!body.includes(TOKEN) && !body.includes(String(fake.port)) && !body.includes('127.0.0.1'));
   }

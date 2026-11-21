@@ -81,6 +81,8 @@ export function shapeRegistry({ floors = [], areas = [], devices = [], entities 
         name: e.name || e.original_name || null,
         area: e.area_id || deviceArea.get(e.device_id) || null,
         hidden: Boolean(e.hidden_by),
+        // config or diagnostic: an integration's settings, not something to show
+        category: e.entity_category === 'config' || e.entity_category === 'diagnostic' ? e.entity_category : null,
       })),
   };
 }

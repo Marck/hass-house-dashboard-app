@@ -26,6 +26,7 @@ const REGISTRY = {
     { id: 'light.two', domain: 'light', name: null, area: 'bed', hidden: false },
     { id: 'light.hidden', domain: 'light', name: 'Hidden', area: 'living', hidden: true },
     { id: 'switch.one', domain: 'switch', name: 'Socket', area: 'shed', hidden: false },
+    { id: 'switch.setting', domain: 'switch', name: 'Auto update', area: 'shed', hidden: false, category: 'config' },
     { id: 'binary_sensor.door', domain: 'binary_sensor', name: 'Front door', area: 'living', hidden: false },
     { id: 'binary_sensor.move', domain: 'binary_sensor', name: 'Motion', area: 'bed', hidden: false },
     { id: 'sensor.temp', domain: 'sensor', name: 'Temperature', area: 'living', hidden: false },
@@ -70,7 +71,7 @@ test('floors by level, areas as rooms, areas without a floor on "Other", hidden 
   const { d } = live();
   assert.deepEqual(d.floors.map((fl) => fl.id), ['ground', 'upstairs', 'floor_other']);
   assert.deepEqual(d.floors.map((fl) => fl.rooms), [['living'], ['bed'], ['shed']]);
-  assert.ok(!d.ha.entities['light.hidden'] && !d.ha.entities['sensor.power']);
+  assert.ok(!d.ha.entities['light.hidden'] && !d.ha.entities['sensor.power'] && !d.ha.entities['switch.setting'], 'hidden, unknown and settings entities left out');
   assert.deepEqual(d.rooms.living.lights, ['light.one']);
   assert.equal(d.rooms.living.temp, 20.5);
   assert.equal(d.rooms.living.door.open, true);

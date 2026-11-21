@@ -64,7 +64,7 @@ export function buildLive(d, registry, states) {
   registry.entities.forEach((e) => {
     const st = states[e.id];
     const kind = kindOf(e.id, st && st.a);
-    if (!kind || e.hidden) return;
+    if (!kind || e.hidden || e.category) return;
     d.ha.entities[e.id] = { kind, area: e.area, name: nameOf(e, st) };
   });
   // Not live yet: no made-up people, camera event or weather in a real house.
