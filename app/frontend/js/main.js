@@ -12,8 +12,9 @@ import { climateVisual, climateStatus } from './views/room.js';
 import { EV_PERIODS } from './views/ev.js';
 import {
   LOCK_SCOPES, LOCK_METHODS, LOCK_IDLE_MINUTES, HOLD_MS, PIN_LENGTH, PIN_TRIES, PIN_WAIT_MS,
-  normalizeLock, isBlocked, isPin, hashPin, checkPin, unlockMethod,
+  normalizeLock, isBlocked, isPin, hashPin, checkPin, unlockMethod, kindOf as actionKind,
 } from './lock.js';
+import { buildLive, applyStates, removeStates } from './live.js';
 
 const PREFS_KEY = 'hhd.prefs';
 const CONFIG_KEY = 'hhd.config';
@@ -217,7 +218,8 @@ function measure() {
 }
 
 function route() {
-  const match = /^#\/(home|energy|network)(?:\/(room_\d+|settings|speakers))?(?:\/(config))?$/.exec(window.location.hash);
+  // Room ids are the demo's room_NN or, live, Home Assistant area ids.
+  const match = /^#\/(home|energy|network)(?:\/(settings|speakers|[a-z0-9_]{1,60}))?(?:\/(config))?$/.exec(window.location.hash);
   s.view = match ? match[1] : 'home';
   if (s.view === 'network' && !netViews(cfg).length) s.view = 'home'; // no source, no network screen
   const sub = match ? match[2] : null;
@@ -255,11 +257,13 @@ function commit() {
 // browser last saw; a save based on an older one is refused, so a tablet that
 // was offline cannot undo an edit made on a phone.
 const server = { on: false, revision: 0, pushing: false, again: false };
+let serverConfig = null; // the household's configuration as last received
 
 /** Use the backend's configuration when it is newer than what this browser shows. */
 function adopt(state) {
   if (!state || !state.config || state.revision === server.revision) return;
   server.revision = state.revision;
+  serverConfig = state.config;
   cfg = normalizeConfig(state.config, d);
   saveJson(CONFIG_KEY, serializeConfig(cfg));
   // The household is set up already: this device skips the setup.
@@ -861,6 +865,11 @@ root.addEventListener('click', (event) => {
     lockedHint();
     return;
   }
+  if (readOnly(name)) {
+    toast('toast.readOnly');
+    render();
+    return;
+  }
   const result = fn(el.getAttribute('data-arg') || '', el.getAttribute('data-val') || '', el);
   if (hadConfirm && s.confirm === hadConfirm) s.confirm = null; // any other tap disarms a pending confirmation
   if (result !== false) render();
@@ -881,6 +890,11 @@ root.addEventListener('input', (event) => {
   if (kind && isBlocked(s.lock, s.locked, kind)) {
     render(); // puts the slider back where it was
     lockedHint();
+    return;
+  }
+  if (kind && readOnly(kind)) {
+    render();
+    toast('toast.readOnly');
     return;
   }
   if (kind === 'volume') {
@@ -993,10 +1007,118 @@ window.addEventListener('resize', () => {
   }, 120);
 });
 
-s.layout = currentLayout();
-route();
-render();
-resetIdle();
+// ----- Live mode: Home Assistant through the backend, read-only. -----
+// The dashboard waits for the first states before it shows anything, so demo
+// data never appears as if it were the house, and a saved configuration is
+// read against the real areas.
+const liveState = { on: false, ready: false, registry: null, source: null, timer: 0, retry: 0 };
+const readOnly = (name) => liveState.on && ['light', 'control'].includes(actionKind(name));
+
+function liveMessage(key) {
+  root.innerHTML = `<main class="boot-msg"><p>${i18n.t(key)}</p></main>`;
+}
+
+function liveRefresh() {
+  liveState.timer = 0;
+  const at = new Date();
+  d.now = { h: at.getHours(), m: at.getMinutes() };
+  applyConfig(d, cfg);
+  route();
+  render();
+}
+
+function liveSchedule() {
+  if (!liveState.timer) liveState.timer = window.setTimeout(liveRefresh, 300);
+}
+
+function liveFirst(states, start) {
+  buildLive(d, liveState.registry, states);
+  cfg = normalizeConfig(loadJson(CONFIG_KEY), d);
+  const at = new Date();
+  d.now = { h: at.getHours(), m: at.getMinutes() };
+  applyConfig(d, cfg);
+  liveState.ready = true;
+  start();
+}
+
+function liveRegistry() {
+  return window.fetch('/api/ha/registry', { credentials: 'same-origin', cache: 'no-store' })
+    .then((res) => (res.ok ? res.json() : null))
+    .catch(() => null);
+}
+
+/**
+ * The stream: "states" (all of them, also after Home Assistant reconnects) and
+ * "change". Until the registry is there, states and changes are collected.
+ */
+function liveConnect(start) {
+  const source = new window.EventSource('/api/ha/stream', { withCredentials: true });
+  let latest = null; // every state, kept current until the registry arrives
+  liveState.source = source;
+
+  const settle = () => {
+    if (!latest) return;
+    liveRegistry().then((registry) => {
+      if (registry) liveState.registry = registry;
+      if (!liveState.registry) {
+        window.clearTimeout(liveState.retry);
+        liveState.retry = window.setTimeout(settle, 3000);
+        return;
+      }
+      const states = latest;
+      latest = null;
+      if (!liveState.ready) {
+        liveFirst(states, start);
+        return;
+      }
+      buildLive(d, liveState.registry, states);
+      cfg = normalizeConfig(serverConfig || loadJson(CONFIG_KEY), d);
+      liveSchedule();
+    });
+  };
+
+  source.addEventListener('states', (event) => {
+    latest = JSON.parse(event.data);
+    settle();
+  });
+  source.addEventListener('change', (event) => {
+    const change = JSON.parse(event.data);
+    if (latest) {
+      Object.assign(latest, change.set || {});
+      (change.remove || []).forEach((id) => { delete latest[id]; });
+      return;
+    }
+    if (!liveState.ready) return;
+    applyStates(d, change.set || {});
+    removeStates(d, change.remove || []);
+    liveSchedule();
+  });
+  source.addEventListener('error', () => {
+    // The browser retries by itself; a closed stream (signed out, server gone) is opened again.
+    if (source.readyState === window.EventSource.CLOSED) window.setTimeout(() => liveConnect(start), 10_000);
+    if (!liveState.ready) liveMessage('live.waiting');
+  });
+}
+
+function boot() {
+  s.layout = currentLayout();
+  route();
+  render();
+  resetIdle();
+  loadHa();
+  setInterval(loadHa, 60_000);
+  loadMe();
+}
+
+window.fetch('/api/info', { credentials: 'same-origin', cache: 'no-store' })
+  .then((res) => (res.ok ? res.json() : null))
+  .catch(() => null)
+  .then((info) => {
+    if (!info || info.mode !== 'live') return boot();
+    liveState.on = true;
+    liveMessage('live.loading');
+    return liveConnect(boot);
+  });
 
 /** The paired devices, for the settings. Only a signed-in person may list them. */
 function loadDevices() {
@@ -1025,17 +1147,16 @@ function loadHa() {
     })
     .catch(() => {});
 }
-loadHa();
-setInterval(loadHa, 60_000);
-
-window.fetch('/api/me', { credentials: 'same-origin' })
-  .then((res) => (res.ok ? res.json() : null))
-  .then((me) => {
-    if (!me || !me.signedIn) return;
-    s.me = { signedIn: true, kind: me.kind === 'device' ? 'device' : 'person', name: String(me.name || '') };
-    render();
-    if (s.me.kind === 'person') loadDevices();
-    syncConfig();
-    setInterval(syncConfig, 60_000);
-  })
-  .catch(() => {});
+function loadMe() {
+  window.fetch('/api/me', { credentials: 'same-origin' })
+    .then((res) => (res.ok ? res.json() : null))
+    .then((me) => {
+      if (!me || !me.signedIn) return;
+      s.me = { signedIn: true, kind: me.kind === 'device' ? 'device' : 'person', name: String(me.name || '') };
+      render();
+      if (s.me.kind === 'person') loadDevices();
+      syncConfig();
+      setInterval(syncConfig, 60_000);
+    })
+    .catch(() => {});
+}

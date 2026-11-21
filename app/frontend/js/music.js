@@ -12,7 +12,9 @@ export const ACTIVE_STATES = ['playing', 'paused'];
 export const GROUP_MIN = 2;
 
 const isActive = (p) => Boolean(p) && ACTIVE_STATES.includes(p.state);
-const sameMedia = (a, b) => a.titleKey === b.titleKey && a.artistKey === b.artistKey;
+// Keys are translation keys in the demo and literal names ({ text }) when live.
+const keyOf = (k) => (k && typeof k === 'object' ? `=${k.text}` : k);
+const sameMedia = (a, b) => keyOf(a.titleKey) === keyOf(b.titleKey) && keyOf(a.artistKey) === keyOf(b.artistKey);
 
 /** Whether a player offers a control right now. An unavailable player offers none. */
 export const can = (p, feature) => Boolean(p) && p.state !== 'unavailable' && p.features.includes(feature);

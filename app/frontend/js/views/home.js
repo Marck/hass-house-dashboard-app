@@ -3,7 +3,7 @@ import { icon } from '../icons.js';
 import { homeSummary, roomSummary } from '../model.js';
 import { floorplan, roomStatusText } from '../art/floorplan.js';
 import { sunArc } from '../charts.js';
-import { act, seg, live, cardGrid, roomName, roomNameRaw, floorName, canEditConfig } from './parts.js';
+import { act, seg, live, cardGrid, roomName, roomNameRaw, floorName, canEditConfig, demoNote } from './parts.js';
 import { planEditor } from './editor.js';
 import { musicCard } from './music.js';
 
@@ -113,12 +113,13 @@ export function homeView(c) {
     <ul class="people" aria-label="${t('home.people')}">${people}</ul>
     <div class="chips">
       ${live(c)}
-      <span class="chip">${f.unit(d.weather.temp, '°C')}, ${t(d.weather.conditionKey)}</span>
-      <span class="chip">${t('home.battery')} <b>${f.pct(d.energy.battery.soc)}</b></span>
+      ${d.live ? '' : `<span class="chip">${f.unit(d.weather.temp, '°C')}, ${t(d.weather.conditionKey)}</span>
+      <span class="chip">${t('home.battery')} <b>${f.pct(d.energy.battery.soc)}</b></span>`}
       ${doorChip}
       ${camChip}
-      <span class="chip"><i class="dot is-warn"></i>${t('guard.label')} <b>${t(d.guardKey)}</b></span>
+      ${d.live ? '' : `<span class="chip"><i class="dot is-warn"></i>${t('guard.label')} <b>${t(d.guardKey)}</b></span>`}
     </div>
+    ${demoNote(c)}
     <section class="card plan" aria-label="${t('plan.title')}">
       <div class="plan-head">${floorTabs}${s.locked ? '' : editBtn}</div>
       ${s.layout === 'phone' ? roomList(c, floor) : floorplan(c, floor) + legend(c)}

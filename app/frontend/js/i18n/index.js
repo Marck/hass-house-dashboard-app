@@ -39,7 +39,8 @@ export function createI18n(lang) {
   const clock = new Intl.DateTimeFormat(locale, { hour: '2-digit', minute: '2-digit', hour12: false });
   const day = new Intl.DateTimeFormat(locale, { weekday: 'short' });
 
-  const tx = (key, params = {}) => fill(lookup(lang, key), params, String);
+  // A key can also be a literal name from Home Assistant ({ text }), shown as is.
+  const tx = (key, params = {}) => (key && typeof key === 'object' ? String(key.text) : fill(lookup(lang, key), params, String));
   const t = (key, params = {}) => esc(tx(key, params));
   const tn = (key, count, params = {}) => t(`${key}.${plural.select(count)}`, { n: num(count), ...params });
   const rich = (key, params = {}) => fill(esc(lookup(lang, key)), params, (value) => `<b>${esc(value)}</b>`);

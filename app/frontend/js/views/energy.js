@@ -2,7 +2,7 @@
 import { icon } from '../icons.js';
 import { propertyArt, chipStyle } from '../art/property.js';
 import { sparkline, socChart, rings, meter, batteryArt } from '../charts.js';
-import { act, live, cardGrid } from './parts.js';
+import { act, live, cardGrid, demoNote } from './parts.js';
 import { evCard } from './ev.js';
 
 /** The values shown as callouts on the artwork, and as tiles on phones. */
@@ -110,7 +110,7 @@ const ENERGY_CARDS = { battery: batteryCard, balance: balanceCard, consumption: 
 export function energyView(c) {
   const { t } = c;
   return `<div class="page-head"><div><h1>${t('energy.title')}</h1><p class="lead">${t('energy.lead')}</p></div>
-      <button type="button" class="icon-btn" aria-label="${t('common.notifications')}" ${act('bell')}>${icon('bell')}</button></div>
+      <button type="button" class="icon-btn" aria-label="${t('common.notifications')}" ${act('bell')}>${icon('bell')}</button></div>${demoNote(c)}
     ${hero(c)}
     ${cardGrid(c, 'energy', ENERGY_CARDS, 'grid-energy')}`;
 }
