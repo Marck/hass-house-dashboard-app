@@ -43,6 +43,9 @@ export const sheet = (c, head, body) => `<div class="sheet-backdrop" data-action
 
 export const eyebrow = (left, right = '', ic = '') => `<div class="eyebrow"><h3>${ic ? icon(ic) : ''}${left}</h3>${right ? `<span>${right}</span>` : ''}</div>`;
 
+/** In live mode, the parts that still show demo data say so. */
+export const demoNote = (c) => (c.d.live ? `<p class="menu-note is-warn">${c.t('live.demoNote')}</p>` : '');
+
 export const live = (c) => `<span class="chip"><i class="dot is-ok"></i>${c.t('common.live', { time: c.f.time(c.d.now.h, c.d.now.m) })}</span>`;
 
 // Names: a label the user typed wins over the built-in translated name.

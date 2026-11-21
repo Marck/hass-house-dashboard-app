@@ -766,7 +766,8 @@ Append an entry whenever meaningful work is completed:
 - Live: the preview runs in live mode and is connected to Home Assistant (2026.11.1), read-only. Token: the non-admin one Mira uses, resealed for the dashboard (owner's choice); rotating it in Mira means resealing it for the dashboard too.
 - Decided: no "Connect" button in step 5. It is parked as an optional feature for installs without GitOps, with its trade-offs in `docs/phase-2-architecture.md`. Step 5 is the backend configuration store.
 - A paired tablet has no edit buttons for the household layout; it is changed on a phone (owner's choice).
-- Step 6, backend half: live states from Home Assistant, cleaned of credentials and context, served to signed-in sessions as a snapshot and a stream. The frontend half (6b) is next.
+- Step 6, backend half: live states from Home Assistant, cleaned of credentials and context, served to signed-in sessions as a snapshot and a stream.
+- Step 6b (2026-11-22): the frontend shows the live states. Areas are rooms, Home Assistant floors are floors; controls are read-only until step 10; parts that are not live yet say they show demo data. Checked in a browser against the fake Home Assistant: a state change reaches the screen within a second and a control is refused as read-only.
 - Step 5 built: the household's configuration is kept by the backend and shared by all devices (details in `docs/phase-2-architecture.md`). Checked in a browser against the real backend: a browser's configuration moves to the backend once, a fresh tablet shows it and skips the setup, a stale save is refused.
 
 ## 12. Open questions / required inputs

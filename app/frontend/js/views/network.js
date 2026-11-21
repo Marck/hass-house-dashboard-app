@@ -5,7 +5,7 @@ import { netModel, netStats } from '../model.js';
 import { netViews } from '../config.js';
 import { layoutNetwork } from '../art/netlayout.js';
 import { pingChart, outageBars, meter } from '../charts.js';
-import { act, seg, cardGrid, showId } from './parts.js';
+import { act, seg, cardGrid, showId, demoNote } from './parts.js';
 
 const BANDS = { unifi: ['wired', 'g5', 'g24', 'unknown'], zigbee: ['zb'] };
 
@@ -194,7 +194,7 @@ export function networkView(c) {
   ]);
   const lead = t(`net.lead.${mixed(m) ? 'all' : m.sources[0]}`, { nodes: f.num(st.nodes), online: f.num(st.online), offline: f.num(st.offline) });
   const head = `<div class="page-head"><div><h1>${t('net.title')}</h1><p class="lead">${lead}</p></div>
-    ${tabs}<span class="chip"><i class="dot is-ok"></i>${t('common.live', { time: f.time(d.now.h, d.now.m) })}</span></div>`;
+    ${tabs}<span class="chip"><i class="dot is-ok"></i>${t('common.live', { time: f.time(d.now.h, d.now.m) })}</span></div>${demoNote(c)}`;
   if (s.netTab === 'availability') return head + availability(c);
 
   const banner = open ? `<div class="banner is-warn"><span class="ic-box">${icon('shield')}</span>

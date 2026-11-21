@@ -153,7 +153,7 @@ export function roomSheet(c, id) {
   const chips = [];
   if (room.motion === 'now') chips.push(`<span class="chip is-purple">${icon('walk')}${t('common.now')}</span>`);
   if (sum.unavailable) chips.push(`<span class="chip is-amber">${icon('alert')}${tn('room.offline', sum.unavailable)}</span>`);
-  if (room.door) chips.push(`<span class="chip">${icon('door')}${t(room.door.nameKey)} <b class="${room.door.open ? 'is-blue' : 'is-teal'}">${t(room.door.open ? 'door.open' : 'door.closed')}</b><span class="chip-sep">${icon('battery')}${f.pct(room.door.battery)}</span></span>`);
+  if (room.door) chips.push(`<span class="chip">${icon('door')}${t(room.door.nameKey)} <b class="${room.door.open ? 'is-blue' : 'is-teal'}">${t(room.door.open ? 'door.open' : 'door.closed')}</b>${Number.isFinite(room.door.battery) ? `<span class="chip-sep">${icon('battery')}${f.pct(room.door.battery)}</span>` : ''}</span>`);
 
   const missing = (kind) => room.missingEntities.filter((eid) => kindOf(eid) === kind);
   const others = room.missingEntities.filter((eid) => !['light', 'switch', 'climate'].includes(kindOf(eid)));
