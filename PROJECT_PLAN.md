@@ -500,7 +500,7 @@ Not started. Needs the owner's go like the rest of Phase 2.
 - [ ] Setup once per installation in the backend; device steps per device.
 - [ ] Threat review of all three before use outside the local network.
 - [x] Signed-out, sign-in-failed, not-found and error pages in the site's style with EN/NL (2.14).
-- [ ] Sheets close with a pull down on the handle (2.15); checked on the iPad Air 2 and an iPhone.
+- [x] Sheets close with a pull down on the handle (2.15). Checked in a browser at phone size with mouse and touch; still to check on the iPad Air 2 and an iPhone (`docs/device-testing.md`).
 
 ### Phase 2 deliverables
 
