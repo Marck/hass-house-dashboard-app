@@ -15,6 +15,7 @@ import {
   normalizeLock, isBlocked, isPin, hashPin, checkPin, unlockMethod, kindOf as actionKind,
 } from './lock.js';
 import { buildLive, applyStates, removeStates } from './live.js';
+import { pullCloses, pullOffset, PULL_START_PX } from './pull.js';
 
 const PREFS_KEY = 'hhd.prefs';
 const CONFIG_KEY = 'hhd.config';
@@ -98,6 +99,8 @@ let idleTimer = 0;
 let holdTimer = 0;
 let pinFails = 0;
 let pinBlockedUntil = 0;
+let pull = null; // a sheet being pulled down, see pullStart
+let suppressClick = false; // the click that ends a pull is not a tap
 
 const savePrefs = () => saveJson(PREFS_KEY, JSON.stringify({ lang: s.lang, mode: s.theme.mode, manual: s.theme.manual }));
 const saveDevice = () => saveJson(DEVICE_KEY, JSON.stringify({ lock: s.lock }));
@@ -168,6 +171,11 @@ function diagnostics() {
 }
 
 function render() {
+  // A render would replace the sheet under the finger; it waits for the release.
+  if (pull && pull.active) {
+    pull.renderLater = true;
+    return;
+  }
   const active = document.activeElement;
   const fid = active && active.getAttribute ? active.getAttribute('data-fid') : null;
   const scroller = root.querySelector('[data-scroll]');
@@ -1006,6 +1014,88 @@ window.addEventListener('resize', () => {
     }
   }, 120);
 });
+
+// ----- Pull a sheet down to close it (plan 2.15). -----
+// Only a sheet whose backdrop closes it can be pulled: the setup, the PIN pad
+// and a sheet with an armed confirmation cannot. A pull that starts in
+// content scrolled down scrolls it; at the top, pulling further moves the sheet.
+const reducedMotion = () => Boolean(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
+
+function pullStart(target, y) {
+  const sheetEl = target.closest && target.closest('.sheet');
+  if (!sheetEl || s.confirm || s.pinPad || s.onboard) return;
+  if (!root.querySelector('.sheet-backdrop[data-action="close-sheet"]')) return;
+  if (target.closest('input, select, textarea, label')) return;
+  if (sheetEl.scrollTop > 0) return;
+  pull = { el: sheetEl, backdrop: root.querySelector('.sheet-backdrop'), y0: y, dy: 0, active: false, lastY: y, lastT: Date.now(), moved: 0, ms: 0 };
+}
+
+/** Returns true when the sheet follows, so the caller can stop the page from scrolling. */
+function pullMove(y) {
+  if (!pull) return false;
+  const dy = y - pull.y0;
+  if (!pull.active) {
+    if (dy < -PULL_START_PX || pull.el.scrollTop > 0) {
+      pull = null; // a scroll up, or content that scrolled: not a pull
+      return false;
+    }
+    if (dy < PULL_START_PX) return false;
+    pull.active = true;
+    pull.el.classList.add('is-pulling');
+  }
+  const now = Date.now();
+  pull.moved = y - pull.lastY;
+  pull.ms = now - pull.lastT;
+  pull.lastY = y;
+  pull.lastT = now;
+  pull.dy = dy;
+  pull.el.style.setProperty('--pull', `${pullOffset(dy)}px`);
+  if (pull.backdrop) pull.backdrop.style.opacity = String(Math.max(0.2, 1 - pullOffset(dy) / pull.el.offsetHeight));
+  return true;
+}
+
+function pullEnd() {
+  if (!pull) return;
+  const p = pull;
+  pull = null;
+  if (!p.active) return;
+  const close = pullCloses({ dy: p.dy, ms: p.ms, moved: p.moved, height: p.el.offsetHeight });
+  p.el.classList.remove('is-pulling');
+  const done = () => {
+    if (close) actions['close-sheet']();
+    render();
+  };
+  // A click that ends a pull is not a tap on what was under the finger.
+  suppressClick = true;
+  window.setTimeout(() => { suppressClick = false; }, 300);
+  if (reducedMotion()) return done();
+  p.el.classList.add(close ? 'is-leaving' : 'is-returning');
+  p.el.style.setProperty('--pull', close ? '100%' : '0px');
+  if (p.backdrop) p.backdrop.style.opacity = close ? '0' : '';
+  window.setTimeout(done, 200);
+  return undefined;
+}
+
+root.addEventListener('touchstart', (event) => {
+  if (event.touches.length === 1) pullStart(event.target, event.touches[0].clientY);
+}, { passive: true });
+root.addEventListener('touchmove', (event) => {
+  if (pullMove(event.touches[0].clientY)) event.preventDefault();
+}, { passive: false });
+root.addEventListener('touchend', pullEnd);
+root.addEventListener('touchcancel', pullEnd);
+root.addEventListener('mousedown', (event) => {
+  if (event.button === 0) pullStart(event.target, event.clientY);
+});
+window.addEventListener('mousemove', (event) => {
+  if (pull && pullMove(event.clientY)) event.preventDefault();
+});
+window.addEventListener('mouseup', pullEnd);
+root.addEventListener('click', (event) => {
+  if (!suppressClick) return;
+  event.stopPropagation();
+  event.preventDefault();
+}, true);
 
 // ----- Live mode: Home Assistant through the backend, read-only. -----
 // The dashboard waits for the first states before it shows anything, so demo

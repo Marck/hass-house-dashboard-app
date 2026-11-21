@@ -34,6 +34,7 @@ Do this in portrait and landscape, in the light and the dark theme, in English a
 |---|---|
 | Home | The floor plan is sharp and every room can be tapped. No sideways scrolling. The top bar fits. |
 | Room sheet | Opens and closes. The temperature slider follows the finger for AC and heating. Lights and switches toggle on the first tap. |
+| Pull to close | Pull a sheet down by its handle: it follows the finger, closes when let go far enough or with a flick, and springs back after a short slow pull. In a sheet scrolled down, pulling scrolls first. The setup and the PIN pad cannot be pulled away. |
 | Energy | Illustration and callouts do not overlap. Charts are sharp. |
 | Network | The map is readable without zooming. All, UniFi and Zigbee switch at once. |
 | Settings | Opens from the gear. Selects and text fields do not zoom the page. All diagnostics pass. |
