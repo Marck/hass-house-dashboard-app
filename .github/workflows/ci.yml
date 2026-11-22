@@ -2,8 +2,13 @@ name: CI
 
 # Runs on pull requests (Renovate's included) and on demand. This repository is
 # public, so the minutes are free. scripts/verify.sh runs the same checks locally.
-# There is deliberately no push trigger: a branch with a pull request would run twice.
+# Push runs only for renovate/**; a Renovate branch that does get a PR runs twice, rare enough.
 on:
+  # renovate/** pushes too, unfiltered: Renovate automerges a non-major on the
+  # branch itself, with no pull request, so every renovate branch needs a check,
+  # including one that only bumps an action in image.yml.
+  push:
+    branches: ["renovate/**"]
   pull_request:
     paths:
       - 'app/**'
