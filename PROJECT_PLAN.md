@@ -824,6 +824,7 @@ Append an entry whenever meaningful work is completed:
 - Privacy/security review: no secret or household data found in the repository, its history, CI logs or the image.
 - Blockers: the namespace decision needs the owner's confirmation; the device checklists need the devices.
 - Approval needed: see section 11, approval boundaries, and the review summary.
+- Later that day (items 4 to 6): Automatic theme follows Home Assistant's sun entity in live mode; registry changes reach the browser at once; the configuration sync has its own tests. Checked against the fake Home Assistant and in a browser; not on the devices.
 
 ## 12. Open questions / required inputs
 

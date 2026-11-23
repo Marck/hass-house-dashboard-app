@@ -57,6 +57,7 @@ function states(d) {
     { view: 'home', menu: 'lang' }, { view: 'home', menu: 'theme' },
     { view: 'home', menu: 'theme', theme: { mode: 'manual', manual: 'dark' } },
     { view: 'home', menu: 'theme', sun: 'unavailable' },
+    { view: 'home', menu: 'theme', sunLive: true, sun: 'below' }, { view: 'home', menu: 'theme', sunLive: true, sun: 'unavailable' },
     { view: 'home', edit: true, planEdit: true }, { view: 'energy', edit: true }, { view: 'network', edit: true },
     { view: 'network', netTab: 'availability' }, { view: 'network', site: 'site_02' },
     ...['all', ...NET_SOURCES].map((netView) => ({ view: 'network', netView })),

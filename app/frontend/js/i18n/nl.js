@@ -27,6 +27,7 @@ export default {
   'theme.sun.above': 'Zon op',
   'theme.sun.below': 'Zon onder',
   'theme.sun.unavailable': 'Onbekend',
+  'theme.sun.live': 'Zonnestand uit Home Assistant: {state}',
   'theme.sun.fallback': 'Zonnestand niet beschikbaar, daarom is het lichte thema actief.',
 
   'common.live': 'Live, {time}',

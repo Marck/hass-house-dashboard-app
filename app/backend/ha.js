@@ -17,14 +17,23 @@ export const LISTS = Object.freeze([
   'config/entity_registry/list',
 ]);
 
+/**
+ * Registry changes, to reload the lists at once instead of at the next refresh.
+ * A non-admin user may subscribe to these (Home Assistant 2026.11.1,
+ * auth/permissions/events.py, SUBSCRIBE_ALLOWLIST).
+ */
+export const REGISTRY_EVENTS = Object.freeze(['floor_registry_updated', 'area_registry_updated', 'device_registry_updated', 'entity_registry_updated']);
+
 /** Every command this connection may send. Nothing here can change anything. */
-export const READ = Object.freeze([...LISTS, 'subscribe_entities']);
+export const READ = Object.freeze([...LISTS, 'subscribe_entities', 'subscribe_events']);
 
 // Attributes that can carry a credential never leave the backend: a camera's or
 // media player's entity_picture, and a media player's entity_picture_local, hold
 // an access token in their URL.
 const SECRET_ATTR = /^entity_picture|token|password|secret/i;
 const BATCH_MS = 500;
+// A rename touches several entries; one reload after the burst is enough.
+const REGISTRY_SETTLE_MS = 2000;
 
 /**
  * One state as the browser gets it: the state, its attributes without
@@ -111,6 +120,8 @@ export function createHa({ url, token, WebSocketImpl = globalThis.WebSocket, log
   let retryTimer = null;
   let pingTimer = null;
   let refreshTimer = null;
+  let registryTimer = null;
+  const registrySubs = new Set(); // subscription ids of REGISTRY_EVENTS
   const waiting = new Map(); // id -> { done, fail, timer }
 
   const setState = (next) => {
@@ -143,8 +154,29 @@ export function createHa({ url, token, WebSocketImpl = globalThis.WebSocket, log
       const [floors, areas, devices, entities] = await Promise.all(LISTS.map(command));
       registry = shapeRegistry({ floors, areas, devices, entities });
       loadedAt = now();
+      return true;
     } catch (error) {
       log.warn(`home assistant: registry not loaded (${error.message.startsWith('refused') ? 'refused' : error.message})`);
+      return false;
+    }
+  }
+
+  /** A registry changed: reload once the burst is over, then send every state again so the browser rebuilds. */
+  function registryChanged() {
+    timers.clearTimeout(registryTimer);
+    registryTimer = timers.setTimeout(async () => {
+      registryTimer = null;
+      if (await load()) queue({ reset: true });
+    }, REGISTRY_SETTLE_MS);
+  }
+
+  function subscribeRegistry() {
+    if (!READ.includes('subscribe_events')) return;
+    registrySubs.clear();
+    for (const eventType of REGISTRY_EVENTS) {
+      const id = nextId++;
+      registrySubs.add(id);
+      send({ id, type: 'subscribe_events', event_type: eventType });
     }
   }
 
@@ -210,8 +242,10 @@ export function createHa({ url, token, WebSocketImpl = globalThis.WebSocket, log
   function clearTimers() {
     timers.clearInterval(pingTimer);
     timers.clearInterval(refreshTimer);
+    timers.clearTimeout(registryTimer);
     pingTimer = null;
     refreshTimer = null;
+    registryTimer = null;
     for (const [, w] of waiting) {
       timers.clearTimeout(w.timer);
       w.fail(new Error('disconnected'));
@@ -274,9 +308,15 @@ export function createHa({ url, token, WebSocketImpl = globalThis.WebSocket, log
       refreshTimer = timers.setInterval(load, REFRESH_MS);
       load();
       subscribe();
+      subscribeRegistry();
       return;
     }
     if (msg.type === 'event' && msg.id === subId && msg.event) return onStates(msg.event);
+    if (msg.type === 'event' && registrySubs.has(msg.id)) return registryChanged();
+    if (msg.type === 'result' && registrySubs.has(msg.id)) {
+      if (!msg.success) log.warn(`home assistant: registry updates refused (${String(msg.error && msg.error.code).slice(0, 40)}), reloading every 15 minutes only`);
+      return;
+    }
     if (msg.type === 'result' && msg.id === subId && !msg.success) {
       log.warn(`home assistant: live states refused (${String(msg.error && msg.error.code).slice(0, 40)})`);
       return;

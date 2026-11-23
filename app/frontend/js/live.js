@@ -114,3 +114,8 @@ export function removeStates(d, ids) {
   ids.forEach((id) => { gone[id] = { s: 'unavailable', a: {} }; });
   applyStates(d, gone);
 }
+
+const SUN = { above_horizon: 'above', below_horizon: 'below' };
+
+/** The theme's sun state from Home Assistant's sun entity: above, below, or unavailable (light theme). */
+export const sunFrom = (state) => SUN[state && state.s] || 'unavailable';

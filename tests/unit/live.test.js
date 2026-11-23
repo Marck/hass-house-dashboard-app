@@ -7,8 +7,9 @@ import { applyConfig, homeSummary } from '../../app/frontend/js/model.js';
 import { defaultLock } from '../../app/frontend/js/lock.js';
 import { defaultAccess } from '../../app/frontend/js/onboard.js';
 import { appView, context } from '../../app/frontend/js/views/app.js';
-import { buildLive, applyStates, removeStates, kindOf } from '../../app/frontend/js/live.js';
-import { LAYOUTS } from './helpers.js';
+import { buildLive, applyStates, removeStates, kindOf, sunFrom } from '../../app/frontend/js/live.js';
+import { LAYOUTS, render } from './helpers.js';
+import { resolveTheme } from '../../app/frontend/js/theme.js';
 
 const EVIL = '<img src=x onerror=1>';
 
@@ -114,4 +115,21 @@ test('names from Home Assistant are shown as text, escaped, in every layout and 
   }
   const home = appView(context({ ...JSON.parse('{}'), theme: { mode: 'auto', manual: 'light' }, sun: 'above', layout: 'desktop', view: 'home', floor: 'ground', netTab: 'network', netView: 'all', site: 'site_01', evPeriod: 'day', musicPick: [], lang: 'en', lock: defaultLock(), access: defaultAccess() }, d, createI18n('en'), cfg));
   assert.ok(home.includes('Living room') && home.includes('still show demo data'));
+});
+
+test('Automatic theme follows the sun entity; anything else keeps the light theme', () => {
+  assert.equal(sunFrom({ s: 'below_horizon' }), 'below');
+  assert.equal(sunFrom({ s: 'above_horizon' }), 'above');
+  for (const st of [undefined, null, { s: 'unavailable' }, { s: 'unknown' }, {}]) assert.equal(sunFrom(st), 'unavailable');
+  const auto = { mode: 'auto', manual: 'light' };
+  assert.equal(resolveTheme(auto, sunFrom({ s: 'below_horizon' })), 'dark');
+  assert.equal(resolveTheme(auto, sunFrom(undefined)), 'light');
+  assert.equal(resolveTheme({ mode: 'manual', manual: 'light' }, sunFrom({ s: 'below_horizon' })), 'light');
+});
+
+test('live: the theme menu shows the sun from Home Assistant and offers no demo switch', () => {
+  const html = render({ state: { menu: 'theme', sunLive: true, sun: 'below' } });
+  assert.match(html, /Sun state from Home Assistant: Sun down/);
+  assert.doesNotMatch(html, /data-action="sun"/);
+  assert.match(render({ state: { menu: 'theme' } }), /data-action="sun"/);
 });
