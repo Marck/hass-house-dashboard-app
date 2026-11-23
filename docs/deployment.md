@@ -71,7 +71,7 @@ In authentik, create an OAuth2/OpenID provider (confidential client, authorizati
 
 For production. To be reviewed and approved before any cluster change:
 
-- A separate Deployment and Service, not a sidecar, in its own namespace with one NetworkPolicy to the Home Assistant API port (A8; awaiting the owner's confirmation, see [phase-2-architecture.md](phase-2-architecture.md#network-architecture)).
+- A separate Deployment and Service, not a sidecar, in its own namespace with one NetworkPolicy to the Home Assistant API port (A8, confirmed 2026-11-23; see [phase-2-architecture.md](phase-2-architecture.md#network-architecture)).
 - Non-root, read-only root filesystem, no service account token.
 - Reachable on the local network and through VPN only. Sign-in by the backend itself, with OIDC against the existing identity provider (decided 2026-11-17, replacing forward auth).
 - A NetworkPolicy: only the ingress controller reaches the dashboard, and the dashboard reaches only DNS, the identity provider and the Home Assistant API port.

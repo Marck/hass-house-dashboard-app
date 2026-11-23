@@ -13,7 +13,7 @@ Status: approved 2026-11-17. The owner gave the go for Phase 2 and decided: OIDC
 | A5 | Sign-in | OIDC against authentik, done by the backend, instead of forward-auth at the ingress | See "Authentication" below: with forward-auth in front, a paired tablet would still need an authentik session, which is the problem pairing exists to solve |
 | A6 | Second sign-in mode | Home Assistant account, for installations without an identity provider | The first-run setup offers it; no password store of our own |
 | A7 | Tablet | Device pairing, with its own session of 30 days | Safari 15 login and session length, seen 2026-11-16 |
-| A8 | Namespace | Its own namespace, as the preview. Runs this way since 2026-11-18; proposed as authoritative 2026-11-23, awaiting the owner's confirmation (see Network architecture) | Verified: Home Assistant does not use host networking, so a policy on its namespace protects it; the cluster enforces NetworkPolicy (checked 2026-11-01, connection refused without an allow rule); the Home Assistant chart already admits named namespaces one by one |
+| A8 | Namespace | Its own namespace, as the preview. Runs this way since 2026-11-18; confirmed by the owner 2026-11-23 (see Network architecture) | Verified: Home Assistant does not use host networking, so a policy on its namespace protects it; the cluster enforces NetworkPolicy (checked 2026-11-01, connection refused without an allow rule); the Home Assistant chart already admits named namespaces one by one |
 | A9 | Speaker groups | Members configured by the user, as in the mock | Home Assistant does not expose Cast group members; inferring them would be a guess |
 | A10 | Storage | JSON files with atomic replace on a small volume, single replica | A configuration, a few sessions and paired devices; no database needed. SQLite on the cluster's NFS volumes is avoided (file locking) |
 
@@ -25,7 +25,7 @@ Checked 2026-11-23: the code, the chart on the Helm repository's main branch, an
 |---|---|---|---|---|
 | Exists | Yes, on demand | Yes, on demand | Yes, since 2026-11-16 | No |
 | Data | Synthetic, in the frontend | Live Home Assistant, read-only | Live Home Assistant, read-only (since 2026-11-18) | Live, with commands |
-| Backend runs | Developer's machine (`node app/backend/main.js` or `scripts/serve.py`) | Developer's machine, loopback only | Its own namespace in the cluster | Not decided beyond A8 |
+| Backend runs | Developer's machine (`node app/backend/main.js` or `scripts/serve.py`) | Developer's machine, loopback only | Its own namespace in the cluster | Its own namespace (A8) |
 | Home Assistant credential | None; the backend refuses to start with any Home Assistant setting | Token file outside the repository | Sealed Secret in the dashboard namespace, mounted as a file | Sealed Secret |
 | Sign-in | None | None; refused unless it listens on loopback | OIDC, plus pairing | OIDC or Home Assistant account, plus pairing |
 | Reachable from | The machine, or the LAN with `serve.py` | The machine only | LAN and VPN only: its host name resolves only on the LAN's DNS and the tunnel does not route it | To be approved |
@@ -55,7 +55,7 @@ To verify on the iPad Air 2 before relying on it: that a server-set cookie survi
 
 ## Network architecture
 
-Proposed as the one authoritative decision on 2026-11-23, awaiting the owner's confirmation. It describes what runs since 2026-11-18; nothing changes until the owner decides.
+The one authoritative decision, confirmed by the owner on 2026-11-23. It describes what runs since 2026-11-18.
 
 | Item | Decision |
 |---|---|
