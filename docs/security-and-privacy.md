@@ -14,7 +14,7 @@ Use synthetic labels and generated ids such as `room_01`, `area_01` and `dev_01`
 
 ## What Phase 1 does
 
-- It makes no network requests. The page's Content-Security-Policy sets `connect-src 'none'`, allows scripts and styles from the same origin only, and forbids inline styles and scripts.
+- It makes no requests to anything but its own backend. The page's Content-Security-Policy sets `connect-src 'self'` (`'none'` until Phase 2), allows scripts and styles from the same origin only, and forbids inline styles and scripts.
 - All data is synthetic and lives in `app/frontend/js/fixtures/synthetic.js`.
 - It stores two things in the browser's `localStorage`: the language and theme preference, and the dashboard configuration. The configuration holds the names you typed and the ids you linked. Without sign-in it stays in that browser and is sent nowhere. With sign-in (OIDC) the backend keeps the household's copy in `DATA_DIR/config.json` (mode 600) and the browser a cache; only a signed-in person may change it, a paired device reads it, and a save based on an older version is refused.
 - It also stores the child lock settings of that device, separately. They are never part of an export. The PIN is kept as a short fingerprint, not as digits.
@@ -41,6 +41,23 @@ CI does not print environment variables and has read-only repository permissions
 - The backend sends the browser normalized data, not raw payloads.
 - Commands are allowlisted service calls.
 - Logs contain no entity ids, names, tokens or identity headers.
+
+## Audit 2026-11-23
+
+Checked without reproducing any value. Labels: **verified** (checked now), **reported** (earlier claim, not re-checked), **gap** (a problem found).
+
+| Check | Result |
+|---|---|
+| Token in frontend code | Verified: no frontend file handles a token or the Home Assistant address; only the backend reads the token file |
+| Token in API responses | Gap: a media player's `entity_picture_local` attribute carries a short-lived Home Assistant access token (Home Assistant 2026.11.1 source) and passes the attribute filter. None was present in the live states when checked. Everything else in `/api/ha*` is verified clean by tests |
+| Logs | Verified: the code logs error names and codes only; the running pod's log holds connection events only |
+| Sessions and pairing | Verified: random 32-byte ids, stored hashed, `__Host-` cookies with `HttpOnly`, `Secure`, `SameSite=Lax`; 8-character codes valid 5 minutes, five misses lock out. Gap: an open live stream is not closed when its device is removed or its session ends |
+| Public image | Verified on the deployed digest: no `.env`, git data, configuration, tests or credentials in the layers; its environment sets demo mode only |
+| Export and import | Verified: the export is the normalized configuration (labels, area and entity ids, card layout); no credentials; the child lock is left out. It identifies the household, so keep it private |
+| Error messages | Verified: the API answers with generic errors; startup errors name a setting, never its value. `/api/ha` tells a signed-in user the Home Assistant version |
+| Git history | Verified: every commit on every branch scanned for addresses, tokens, keys, credential assignments, sealed values and household terms. Two hits, both deliberate: a labelled test token in the fake Home Assistant and a documentation address (RFC 5737) |
+| CI | Verified: logs of all 42 runs scanned, clean. No artifacts, releases or issues exist |
+| Older images | Not checked: only the deployed digest was inspected |
 
 ## Reporting a problem
 

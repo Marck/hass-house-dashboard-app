@@ -1,18 +1,18 @@
 # Deployment
 
-Only the **early preview** is approved: the demo in the cluster, so the dashboard can be tested on the real tablet. The rest of Phase 3 waits for Phase 2.
+Only the **early preview** is approved: first the demo, since 2026-11-18 the live backend, read-only (approved as Phase 2 step 4). The rest of Phase 3, publishing a new image and any chart or cluster change each need the owner's approval. Environments: [phase-2-architecture.md](phase-2-architecture.md#environments).
 
 ## Early preview
 
 | Part | Where | State |
 |---|---|---|
 | Image | `Containerfile` and `app/backend` here; published by the Image workflow to the GitHub container registry | Published 2026-11-16: public, amd64 and arm64 |
-| Chart | `apps/house-dashboard` in the owner's Helm repository | Written, waiting for the owner's merge |
-| Rollout | A merge there, synced by the cluster's GitOps tooling | Nothing is deployed |
+| Chart | `apps/house-dashboard` in the owner's Helm repository | Merged; live, read-only, OIDC sign-in (checked 2026-11-23) |
+| Rollout | A merge there, synced by the cluster's GitOps tooling | Running; the image digest is pinned in the chart |
 
-The image runs the Node backend (`app/backend`), which serves the frontend and the demo data. In demo mode (the default) it refuses to start when any `HASS_` or `HOME_ASSISTANT_` setting is present. In live mode it reads Home Assistant, read-only (see below). It runs as a non-root user with a read-only root filesystem and writes nothing; the chart's `/tmp` `emptyDir` is harmless and kept. It listens on port 8080 and answers `/healthz` for probes. Since 2026-11-17 the preview signs people in itself with OIDC against authentik (`AUTH_MODE=oidc`); there is no forward-auth at the ingress any more. Its only outbound connections are DNS and authentik.
+The image runs the Node backend (`app/backend`), which serves the frontend. In demo mode (the default) it serves synthetic data and refuses to start when any `HASS_` or `HOME_ASSISTANT_` setting is present. In live mode it reads Home Assistant, read-only (see below). The same image does both. It runs as a non-root user with a read-only root filesystem; it writes only to the data volume. It listens on port 8080 and answers `/healthz` for probes. Since 2026-11-17 the preview signs people in itself with OIDC against authentik (`AUTH_MODE=oidc`); there is no forward-auth at the ingress any more.
 
-The chart runs it in its own namespace: Pod Security `restricted`, inbound from the ingress controller and the uptime monitor only, no egress, the image pinned by digest. Its test boots the pinned image the way the pod runs it.
+The chart runs it in its own namespace: Pod Security `restricted`, inbound from the ingress controller and the uptime monitor only, outbound to DNS, authentik and the Home Assistant API port only, the image pinned by digest. Its test boots the pinned image the way the pod runs it.
 
 To publish: Actions, Image, Run workflow. It builds for amd64 and arm64 and pushes the commit SHA and the channel name as tags. The package is public, so the cluster needs no pull secret. A new build is deployed by putting its digest in the chart.
 
@@ -69,9 +69,9 @@ In authentik, create an OAuth2/OpenID provider (confidential client, authorizati
 
 ## Intended design
 
-For the live backend (stage 2). Decided on 2026-11-15, to be detailed and reviewed before any cluster change:
+For production. To be reviewed and approved before any cluster change:
 
-- A separate Deployment and Service, not a sidecar in the Home Assistant pod. The plan says the Home Assistant namespace; the preview showed that the Helm repository gives every chart its own default-deny namespace, so staying separate with one NetworkPolicy to the Home Assistant API port is the alternative. Open decision for the owner.
+- A separate Deployment and Service, not a sidecar, in its own namespace with one NetworkPolicy to the Home Assistant API port (A8; awaiting the owner's confirmation, see [phase-2-architecture.md](phase-2-architecture.md#network-architecture)).
 - Non-root, read-only root filesystem, no service account token.
 - Reachable on the local network and through VPN only. Sign-in by the backend itself, with OIDC against the existing identity provider (decided 2026-11-17, replacing forward auth).
 - A NetworkPolicy: only the ingress controller reaches the dashboard, and the dashboard reaches only DNS, the identity provider and the Home Assistant API port.
@@ -86,7 +86,7 @@ For the live backend (stage 2). Decided on 2026-11-15, to be detailed and review
 
 ## To verify before rollout
 
-- That the cluster enforces NetworkPolicy.
-- Whether Home Assistant runs with host networking. A policy does not protect such a pod, which changes the design.
-- That the identity provider's login page works in Safari 15 on the iPad Air 2, and what session length suits a wall tablet.
+- That the cluster enforces NetworkPolicy (reported 2026-11-01, not re-verified).
+- That a session cookie survives closing Safari and restarting the iPad Air 2, and lasts past 7 days.
+- An IP allow-list for the LAN and VPN on the dashboard's route (recommended).
 - Rollback: the previous image tag and the previous configuration volume snapshot.
