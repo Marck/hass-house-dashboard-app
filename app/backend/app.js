@@ -61,25 +61,42 @@ const page = (res, status, title, body) => send(res, status, TYPES['.html'], not
 // Live states to the browser as server-sent events (EventSource works in
 // Safari 15): "states" with every state first and after a reconnect to Home
 // Assistant, then "change" with what changed. A comment line keeps proxies from
-// closing a quiet stream. Capped, as every open tab holds one.
+// closing a quiet stream. Capped, as every open tab holds one. `allowed()` is
+// asked before every write, so a removed device or an ended session stops
+// receiving at once instead of keeping an open stream.
 const STREAM_MAX = 20;
 const KEEPALIVE_MS = 25_000;
 let streams = 0;
 
-function stream(req, res, ha) {
+function stream(req, res, ha, allowed) {
   if (streams >= STREAM_MAX) return send(res, 503, TYPES['.json'], '{"error":"too many streams"}');
   streams += 1;
   res.writeHead(200, { ...HEADERS, 'Content-Type': 'text/event-stream; charset=utf-8', 'Cache-Control': 'no-store', 'X-Accel-Buffering': 'no' });
-  const write = (event, data) => res.write(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`);
-  const all = ha.states();
-  if (all) write('states', all);
-  const stop = ha.onChange((change) => (change.reset ? write('states', change.set) : write('change', { set: change.set, remove: change.remove })));
-  const keepalive = setInterval(() => res.write(': keepalive\n\n'), KEEPALIVE_MS);
-  req.on('close', () => {
+  let stop = () => {};
+  let keepalive = null;
+  let open = true;
+  const close = () => {
+    if (!open) return;
+    open = false;
     streams -= 1;
     stop();
     clearInterval(keepalive);
-  });
+  };
+  const out = (text) => {
+    if (!open) return;
+    if (!allowed()) {
+      close();
+      return res.end();
+    }
+    res.write(text);
+  };
+  const write = (event, data) => out(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`);
+  const all = ha.states();
+  if (all) write('states', all);
+  stop = ha.onChange((change) => (change.reset ? write('states', change.set) : write('change', { set: change.set, remove: change.remove })));
+  keepalive = setInterval(() => out(': keepalive\n\n'), KEEPALIVE_MS);
+  req.on('close', close);
+  res.on('close', close);
 }
 
 /** The file a URL path names inside root, or null when it would leave root. */
@@ -133,7 +150,7 @@ export function createHandler({ mode, root, auth = null, ha = null, configStore 
       if (!all) return send(res, 503, TYPES['.json'], '{"error":"not loaded"}', { 'Cache-Control': 'no-store' });
       return send(res, 200, TYPES['.json'], JSON.stringify(all), { 'Cache-Control': 'no-store' });
     }
-    if (ha && pathname === '/api/ha/stream') return stream(req, res, ha);
+    if (ha && pathname === '/api/ha/stream') return stream(req, res, ha, () => !auth || Boolean(auth.session(req)));
     if (ha && pathname === '/api/ha/registry') {
       const registry = ha.registry();
       if (!registry) return send(res, 503, TYPES['.json'], '{"error":"not loaded"}', { 'Cache-Control': 'no-store' });

@@ -198,7 +198,7 @@ test('after a reconnect the browser gets every state again', async () => {
 });
 
 test('cleanState keeps ordinary attributes and drops anything that looks like a credential', () => {
-  const st = cleanState({ s: 'playing', a: { volume_level: 0.4, entity_picture: '/x?token=y', api_token: 'z', Password: 'p' }, c: 'ctx', lu: 9 });
+  const st = cleanState({ s: 'playing', a: { volume_level: 0.4, entity_picture: '/x?token=y', entity_picture_local: '/p?token=y', api_token: 'z', Password: 'p' }, c: 'ctx', lu: 9 });
   assert.deepEqual(st, { s: 'playing', a: { volume_level: 0.4 }, lc: 9 });
 });
 
@@ -222,4 +222,32 @@ test('/api/ha/stream sends every state, then the changes', async () => {
   server.close();
   assert.ok(!text.includes('cam-token-not-real'));
   assert.match(text, /event: change\ndata: \{"set":\{"switch\.one"/);
+});
+
+test('/api/ha/stream ends as soon as its session is gone', async () => {
+  let signedIn = true;
+  const auth = { handle: async () => false, handleApi: async () => false, session: () => (signedIn ? { kind: 'device', name: 'tablet', id: 'd1' } : null) };
+  const ha = createHa({ url: fake.url, token: () => TOKEN, log: quiet().log, timers: fast });
+  const server = createServer(createHandler({ mode: 'live', root: dir, ha, auth }));
+  await new Promise((done) => server.listen(0, '127.0.0.1', done));
+  ha.start();
+  await until(() => ha.states());
+  let text = '';
+  let ended = false;
+  const req = request({ host: '127.0.0.1', port: server.address().port, path: '/api/ha/stream' }, (res) => {
+    res.on('data', (c) => { text += c; });
+    res.on('end', () => { ended = true; });
+  });
+  req.end();
+  try {
+    await until(() => text.includes('event: states'));
+    signedIn = false; // the device was removed under Settings
+    fake.pushStates({ a: { 'switch.two': { s: 'on', a: {}, lc: 6 } } });
+    await until(() => ended);
+  } finally {
+    req.destroy();
+    ha.stop();
+    server.close();
+  }
+  assert.ok(!text.includes('switch.two'));
 });
