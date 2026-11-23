@@ -25,7 +25,10 @@ function themeMenu({ s, t }) {
   if (mode === 'manual') {
     extra = seg(t('theme.manual.label'), ['light', 'dark'].map((v) => ({ label: t(`theme.${v}`), icon: v === 'light' ? 'sun' : 'moon', on: manual === v, attrs: act('theme-manual', v) })), 'seg-full');
   }
-  if (mode === 'auto') {
+  if (mode === 'auto' && s.sunLive) {
+    extra = `<p class="menu-note${s.sun === 'unavailable' ? ' is-warn' : ''}">${t('theme.sun.live', { state: t(`theme.sun.${s.sun}`) })}</p>
+      ${s.sun === 'unavailable' ? `<p class="menu-note is-warn">${t('theme.sun.fallback')}</p>` : ''}`;
+  } else if (mode === 'auto') {
     extra = `<p class="menu-note">${t('theme.sun.title')}</p>
       ${seg(t('theme.sun.title'), SUN_STATES.map((v) => ({ label: t(`theme.sun.${v}`), on: s.sun === v, attrs: act('sun', v) })), 'seg-full')}
       ${s.sun === 'unavailable' ? `<p class="menu-note is-warn">${t('theme.sun.fallback')}</p>` : ''}`;

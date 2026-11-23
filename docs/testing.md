@@ -93,11 +93,11 @@ Status 2026-11-23. "Mocked" is the automated suite against the fake Home Assista
 | Authentication failure | Tested: a refused token is reported, retried after 5 minutes, never logged | Not tested |
 | Missing or unavailable entities | Tested: shown as unavailable; a configured entity that does not exist is reported | Not tested |
 | WebSocket disconnect and reconnect | Tested: reconnect with backoff, registry and every state sent again | Seen once in the preview's log (lost, then connected); the resync itself not observed |
-| Registry changes | Not tested. The registry is reloaded every 15 minutes and on reconnect only, so a renamed area can take 15 minutes to show | Not tested |
+| Registry changes | Tested: a registry event reloads the registry once per burst and sends every state again; a renamed area appeared in a browser without a reload (2026-11-23) | Not tested |
 | Stale configuration writes | Tested: a save based on an older revision is refused with the current state | Reported: browser check against the real backend (progress log, 2026-11-18 to 22) |
 | Session revocation | Tested for requests: a removed device is refused at once. Gap: its open live stream continues | Not tested |
 | Unauthorized requests | Tested: every API path without a session answers 401; a device cannot write the configuration or manage devices | Not tested |
-| Several devices in sync | Partly: the store and revisions are tested; the one-minute check in the browser is not | Reported: a fresh browser showed the stored configuration; not on the real devices |
+| Several devices in sync | Tested: first sign-in moves the browser's configuration once, a device only reads, the next check brings another device's save, a stale save is refused and shown, saves go one at a time and the last wins (`sync.test.js`) | Reported: a fresh browser showed the stored configuration; not on the real devices |
 
 No device command exists in the code, so none of these checks can switch anything.
 
@@ -118,5 +118,5 @@ Theme facts:
 
 - Contrast: WCAG AA for the text pairs of both themes is a unit test and passes.
 - Manual choice: stored on the device; not yet checked on a device after a reload or a Safari restart.
-- Automatic follows the sun state, as the plan defines it (2.5), not the system's light or dark setting. Gap: in live mode it still uses the mock sun state; Home Assistant's sun entity is not wired in yet.
+- Automatic follows the sun state, as the plan defines it (2.5), not the system's light or dark setting. In live mode it follows Home Assistant's sun entity; anything but up or down keeps the light theme. Checked in a browser against the fake Home Assistant (dark while down, light after it rises, 2026-11-23); not on a device.
 - The live frontend was not compared screen by screen with the mock design in the dark theme.

@@ -14,7 +14,8 @@ import {
   LOCK_SCOPES, LOCK_METHODS, LOCK_IDLE_MINUTES, HOLD_MS, PIN_LENGTH, PIN_TRIES, PIN_WAIT_MS,
   normalizeLock, isBlocked, isPin, hashPin, checkPin, unlockMethod, kindOf as actionKind,
 } from './lock.js';
-import { buildLive, applyStates, removeStates } from './live.js';
+import { createConfigSync } from './sync.js';
+import { buildLive, applyStates, removeStates, sunFrom } from './live.js';
 import { pullCloses, pullOffset, PULL_START_PX } from './pull.js';
 
 const PREFS_KEY = 'hhd.prefs';
@@ -248,7 +249,7 @@ function route() {
 /** Store the configuration and rebuild everything derived from it. */
 function commit() {
   // A paired tablet has no way to edit; should a change slip through, undo it.
-  if (server.on && s.me && s.me.kind === 'device') {
+  if (sync.on() && s.me && s.me.kind === 'device') {
     cfg = normalizeConfig(loadJson(CONFIG_KEY), d);
     applyConfig(d, cfg);
     route();
@@ -261,75 +262,29 @@ function commit() {
   pushConfig();
 }
 
-// The household's configuration on the backend. `revision` is the version this
-// browser last saw; a save based on an older one is refused, so a tablet that
-// was offline cannot undo an edit made on a phone.
-const server = { on: false, revision: 0, pushing: false, again: false };
-let serverConfig = null; // the household's configuration as last received
-
-/** Use the backend's configuration when it is newer than what this browser shows. */
-function adopt(state) {
-  if (!state || !state.config || state.revision === server.revision) return;
-  server.revision = state.revision;
-  serverConfig = state.config;
-  cfg = normalizeConfig(state.config, d);
-  saveJson(CONFIG_KEY, serializeConfig(cfg));
-  // The household is set up already: this device skips the setup.
-  if (s.onboard) {
-    s.onboard = null;
-    saveSetup('done');
-  }
-  applyConfig(d, cfg);
-  route();
-  render();
-}
-
-/** Send this browser's configuration; one save at a time, the last one wins. */
-function pushConfig() {
-  if (!server.on) return;
-  if (!s.me || s.me.kind !== 'person') return;
-  if (server.pushing) {
-    server.again = true;
-    return;
-  }
-  server.pushing = true;
-  window.fetch('/api/config', {
-    method: 'PUT', credentials: 'same-origin', headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ revision: server.revision, config: cfg }),
-  })
-    .then(async (res) => {
-      const body = await res.json().catch(() => null);
-      if (res.ok && body) server.revision = body.revision;
-      else if (res.status === 409) {
-        server.again = false;
-        adopt(body);
-        toast('toast.configNewer');
-      } else toast('toast.configNotSaved');
-    })
-    .catch(() => toast('toast.configNotSaved'))
-    .finally(() => {
-      server.pushing = false;
-      if (server.again) {
-        server.again = false;
-        pushConfig();
-      }
-    });
-}
-
-/** Load the household's configuration; the first time, move this browser's own there. */
-function syncConfig() {
-  if (s.edit) return; // never swap the configuration under an open editor
-  window.fetch('/api/config', { credentials: 'same-origin', cache: 'no-store' })
-    .then((res) => (res.ok ? res.json() : null))
-    .then((state) => {
-      if (!state) return;
-      const first = !server.on;
-      server.on = true;
-      if (state.config) adopt(state);
-      else if (first && loadJson(CONFIG_KEY) && s.me && s.me.kind === 'person') pushConfig();
-    })
-    .catch(() => {});
-}
+// The household's configuration on the backend (sync.js); this browser keeps a copy.
+const sync = createConfigSync({
+  fetch: (...args) => window.fetch(...args),
+  canWrite: () => Boolean(s.me && s.me.kind === 'person'),
+  editing: () => Boolean(s.edit),
+  hasLocal: () => Boolean(loadJson(CONFIG_KEY)),
+  current: () => cfg,
+  toast,
+  adopt(config) {
+    cfg = normalizeConfig(config, d);
+    saveJson(CONFIG_KEY, serializeConfig(cfg));
+    // The household is set up already: this device skips the setup.
+    if (s.onboard) {
+      s.onboard = null;
+      saveSetup('done');
+    }
+    applyConfig(d, cfg);
+    route();
+    render();
+  },
+});
+const pushConfig = () => sync.push();
+const syncConfig = () => sync.pull();
 
 const go = (hash) => {
   if (window.location.hash === hash) return true;
@@ -447,7 +402,8 @@ const actions = {
     savePrefs();
   },
   sun(arg) {
-    if (SUN_STATES.includes(arg)) s.sun = arg;
+    // Live: the sun comes from Home Assistant, the demo switch is not offered.
+    if (SUN_STATES.includes(arg) && !s.sunLive) s.sun = arg;
   },
   floor(arg) {
     if (d.floors.some((fl) => fl.id === arg)) s.floor = arg;
@@ -1162,17 +1118,20 @@ function liveConnect(start) {
         return;
       }
       buildLive(d, liveState.registry, states);
-      cfg = normalizeConfig(serverConfig || loadJson(CONFIG_KEY), d);
+      cfg = normalizeConfig(sync.config() || loadJson(CONFIG_KEY), d);
       liveSchedule();
     });
   };
 
   source.addEventListener('states', (event) => {
     latest = JSON.parse(event.data);
+    s.sun = sunFrom(latest['sun.sun']);
     settle();
   });
   source.addEventListener('change', (event) => {
     const change = JSON.parse(event.data);
+    if (change.set && change.set['sun.sun']) s.sun = sunFrom(change.set['sun.sun']);
+    if ((change.remove || []).includes('sun.sun')) s.sun = 'unavailable';
     if (latest) {
       Object.assign(latest, change.set || {});
       (change.remove || []).forEach((id) => { delete latest[id]; });
@@ -1206,6 +1165,8 @@ window.fetch('/api/info', { credentials: 'same-origin', cache: 'no-store' })
   .then((info) => {
     if (!info || info.mode !== 'live') return boot();
     liveState.on = true;
+    s.sunLive = true;
+    s.sun = 'unavailable'; // light until Home Assistant says the sun is down
     liveMessage('live.loading');
     return liveConnect(boot);
   });

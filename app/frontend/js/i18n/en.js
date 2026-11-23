@@ -27,6 +27,7 @@ export default {
   'theme.sun.above': 'Sun up',
   'theme.sun.below': 'Sun down',
   'theme.sun.unavailable': 'Unknown',
+  'theme.sun.live': 'Sun state from Home Assistant: {state}',
   'theme.sun.fallback': 'Sun state unavailable, so the light theme is used.',
 
   'common.live': 'Live, {time}',

@@ -4,7 +4,7 @@ import { createServer, request } from 'node:http';
 import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { createHa as makeHa, haSettings, READ, shapeRegistry } from '../../app/backend/ha.js';
+import { createHa as makeHa, haSettings, READ, REGISTRY_EVENTS, shapeRegistry } from '../../app/backend/ha.js';
 
 // Every client a test makes is stopped at the end, also when an assertion
 // fails half way: a running client would keep the test process alive.
@@ -250,4 +250,29 @@ test('/api/ha/stream ends as soon as its session is gone', async () => {
     server.close();
   }
   assert.ok(!text.includes('switch.two'));
+});
+
+test('a registry change reloads the registry and sends every state again', async () => {
+  const data = JSON.parse(JSON.stringify(DATA));
+  const own = await startFakeHa({ data });
+  const ha = createHa({ url: own.url, token: () => TOKEN, log: quiet().log, timers: fast });
+  const changes = [];
+  ha.onChange((c) => changes.push(c));
+  ha.start();
+  try {
+    await until(() => ha.registry() && ha.states() && own.eventTypes.length === REGISTRY_EVENTS.length);
+    assert.deepEqual([...own.eventTypes].sort(), [...REGISTRY_EVENTS].sort(), 'only the registry events are watched');
+    await until(() => changes.some((c) => c.reset)); // the first full list
+    const before = changes.length;
+    data['config/area_registry/list'][0].name = 'Renamed area';
+    own.pushEvent('area_registry_updated');
+    own.pushEvent('area_registry_updated'); // a burst reloads once
+    await until(() => ha.registry().areas.some((a) => a.name === 'Renamed area'));
+    await until(() => changes.slice(before).some((c) => c.reset));
+    assert.equal(changes.slice(before).filter((c) => c.reset).length, 1);
+    assert.ok(changes.slice(before).find((c) => c.reset).set['light.lamp_one'], 'every state is sent again');
+  } finally {
+    ha.stop();
+    await own.close();
+  }
 });

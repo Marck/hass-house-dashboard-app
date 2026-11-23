@@ -65,6 +65,8 @@ export async function startFakeHa({ token = TOKEN, data = DATA, states = STATES 
   const received = [];
   const sockets = new Set();
   const subscribers = new Set(); // { say, id }
+  const watchers = new Set(); // { say, id, eventType }
+  const eventTypes = [];
   const server = createServer((req, res) => { res.writeHead(404); res.end(); });
   server.on('upgrade', (req, socket) => {
     if (req.url !== '/api/websocket') return socket.destroy();
@@ -93,6 +95,13 @@ export async function startFakeHa({ token = TOKEN, data = DATA, states = STATES 
           subscribers.add(sub);
           socket.on('close', () => subscribers.delete(sub));
         }
+        else if (msg.type === 'subscribe_events') {
+          eventTypes.push(msg.event_type);
+          say({ id: msg.id, type: 'result', success: true, result: null });
+          const w = { say, id: msg.id, eventType: msg.event_type };
+          watchers.add(w);
+          socket.on('close', () => watchers.delete(w));
+        }
         else if (data[msg.type]) say({ id: msg.id, type: 'result', success: true, result: data[msg.type] });
         else say({ id: msg.id, type: 'result', success: false, error: { code: 'unknown_command', message: 'Unknown command.' } });
       }
@@ -109,6 +118,10 @@ export async function startFakeHa({ token = TOKEN, data = DATA, states = STATES 
     received,
     /** Sends a state message ({ a, c, r }) to every subscriber. */
     pushStates: (event) => { for (const sub of subscribers) sub.say({ id: sub.id, type: 'event', event }); },
+    /** The event types the client subscribed to. */
+    eventTypes,
+    /** Fires a registry event (e.g. area_registry_updated) to whoever subscribed to it. */
+    pushEvent: (eventType) => { for (const w of watchers) if (w.eventType === eventType) w.say({ id: w.id, type: 'event', event: { event_type: eventType, data: { action: 'update' } } }); },
     /** Cuts every open connection, as a restart of Home Assistant would. */
     dropAll: () => { for (const s of sockets) s.destroy(); },
     close: () => new Promise((done) => { for (const s of sockets) s.destroy(); server.close(done); }),
