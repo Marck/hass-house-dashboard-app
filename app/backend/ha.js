@@ -20,9 +20,10 @@ export const LISTS = Object.freeze([
 /** Every command this connection may send. Nothing here can change anything. */
 export const READ = Object.freeze([...LISTS, 'subscribe_entities']);
 
-// Attributes that can carry a credential (a camera's or media player's
-// entity_picture holds an access token) never leave the backend.
-const SECRET_ATTR = /^entity_picture$|token|password|secret/i;
+// Attributes that can carry a credential never leave the backend: a camera's or
+// media player's entity_picture, and a media player's entity_picture_local, hold
+// an access token in their URL.
+const SECRET_ATTR = /^entity_picture|token|password|secret/i;
 const BATCH_MS = 500;
 
 /**
