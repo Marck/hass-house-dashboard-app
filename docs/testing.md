@@ -95,7 +95,7 @@ Status 2026-11-23. "Mocked" is the automated suite against the fake Home Assista
 | WebSocket disconnect and reconnect | Tested: reconnect with backoff, registry and every state sent again | Seen once in the preview's log (lost, then connected); the resync itself not observed |
 | Registry changes | Tested: a registry event reloads the registry once per burst and sends every state again; a renamed area appeared in a browser without a reload (2026-11-23) | Not tested |
 | Stale configuration writes | Tested: a save based on an older revision is refused with the current state | Reported: browser check against the real backend (progress log, 2026-11-18 to 22) |
-| Session revocation | Tested for requests: a removed device is refused at once. Gap: its open live stream continues | Not tested |
+| Session revocation | Tested: a removed device is refused at once, and its open live stream ends (#35) | Not tested |
 | Unauthorized requests | Tested: every API path without a session answers 401; a device cannot write the configuration or manage devices | Not tested |
 | Several devices in sync | Tested: first sign-in moves the browser's configuration once, a device only reads, the next check brings another device's save, a stale save is refused and shown, saves go one at a time and the last wins (`sync.test.js`) | Reported: a fresh browser showed the stored configuration; not on the real devices |
 

@@ -102,17 +102,17 @@ Additional requirements:
   - **WebSocket API:** live updates, subscriptions and event monitoring.
 - Follow `dashboard-architecture.png`. Confirm its trust boundaries and traffic paths before implementation. If the diagram is unavailable, stop and request it rather than inventing a conflicting architecture.
 - The browser must never receive a Home Assistant long-lived access token or other HA credential.
-- In Phase 3, HA API traffic must remain inside the Kubernetes namespace:
+- In Phase 3, HA API traffic stays inside the cluster (decision A8: the dashboard has its own namespace):
   - Browser → dashboard service only.
-  - Dashboard backend → Home Assistant service over cluster-internal networking.
-  - No browser-to-HA API calls that leave the pod/namespace boundary.
+  - Dashboard backend → Home Assistant service over cluster-internal networking, from the dashboard namespace to the Home Assistant API port only.
+  - No browser-to-HA API calls.
   - Do not expose the HA API through Ingress, NodePort, LoadBalancer or a public route for this application.
-- Use namespace-scoped service DNS and internal service networking. Apply NetworkPolicies where supported and verify enforcement.
+- Use cluster-internal service DNS. NetworkPolicies on both sides: the dashboard namespace may reach only the Home Assistant API port, and the Home Assistant namespace admits the dashboard namespace on that port only. Verify enforcement.
 - Restrict the dashboard route to LAN and VPN paths at the network/ingress layer. VPN is the only permitted remote path.
-- Do not assume a second container in the Home Assistant pod is automatically the best design. Inspect the supplied architecture and Helm chart first. Prefer a separate dashboard Deployment/Service in the same namespace unless the approved architecture explicitly requires a sidecar. Document the trade-off.
+- Do not assume a second container in the Home Assistant pod is automatically the best design. Inspect the supplied architecture and Helm chart first. Prefer a separate dashboard Deployment/Service unless the approved architecture explicitly requires a sidecar. Document the trade-off.
 - Do not modify the Home Assistant Helm release or cluster resources without an approved change plan.
 - Decision 2026-11-15: a separate dashboard Deployment, no sidecar (a sidecar shares the pod network namespace and lifecycle). The backend ignores and never logs identity headers.
-- Namespace: the 2026-11-15 text said the Home Assistant namespace. Phase 2 decision A8 (2026-11-17) chose the dashboard's own namespace, and that is what runs since 2026-11-18. Confirmed by the owner as authoritative on 2026-11-23; the full decision is in [docs/phase-2-architecture.md](docs/phase-2-architecture.md#network-architecture). Forward auth was replaced by the backend's own OIDC sign-in (A5, 2026-11-17).
+- Namespace (authoritative, A8): the dashboard's own namespace, not Home Assistant's. Chosen 2026-11-17, running since 2026-11-18, confirmed by the owner 2026-11-23; it replaces the 2026-11-15 choice of the Home Assistant namespace. The full decision is in [docs/phase-2-architecture.md](docs/phase-2-architecture.md#network-architecture). Forward auth was replaced by the backend's own OIDC sign-in (A5, 2026-11-17).
 
 ### 2.7 Configurable layout and controls (added 2026-11-15)
 
@@ -532,11 +532,10 @@ Not started. Needs the owner's go like the rest of Phase 2.
 
 The purpose is testing on the real iPad as early as possible. This is the only approved part of Phase 3.
 
-- Stage 1: the demo (synthetic data, no token), behind the existing identity provider. It also checks that the login works in Safari 15.
-- Stage 2: the live backend with the Home Assistant token as a sealed secret. Started early, read-only only: the owner approved connecting the preview to the live instance on 2026-11-18 (Phase 2 step 4). Commands stay off until step 10 and its own approval.
+- Stage 1 (2026-11-16 to 2026-11-18, history): the demo (synthetic data, no token), behind the identity provider, to check that the login works in Safari 15. Replaced by stage 2.
+- Stage 2 (current): the live backend with the Home Assistant token as a sealed secret. Started early, read-only only: the owner approved connecting the preview to the live instance on 2026-11-18 (Phase 2 step 4). Commands stay off until step 10 and its own approval.
 - Image: built by a manually dispatched workflow in this repository and published to the GitHub container registry.
-- Rollout: a chart in the owner's Helm repository. Nothing changes in the cluster until the owner merges it.
-- Until stage 2, the live application is reachable from the development machine only: without a login in front of it, anyone on the network could control the house.
+- Rollout: a chart in a separate, private Helm repository. Nothing changes in the cluster until the owner merges it.
 - State 2026-11-23 (checked read-only in the cluster): no demo runs in the cluster any more. The one deployment is the preview in live, read-only mode, behind OIDC, in its own namespace. The public artifacts are the repository and the image, which starts in demo mode by default.
 - The preview approval is not an approval for production. Publishing an image, changing the chart or the cluster, and turning on commands each need their own approval (section 11, approval boundaries).
 
@@ -563,8 +562,8 @@ The purpose is testing on the real iPad as early as possible. This is the only a
 
 ### 7.3 Kubernetes deployment
 
-- [ ] Add dashboard Deployment and ClusterIP Service in HA namespace unless approved architecture specifies otherwise.
-- [ ] Keep HA API endpoint cluster-internal and namespace-scoped.
+- [ ] Add dashboard Deployment and ClusterIP Service in the dashboard's own namespace (A8).
+- [ ] Keep HA API endpoint cluster-internal, reachable from the dashboard namespace on its API port only.
 - [ ] Configure backend-to-HA communication using internal service DNS.
 - [ ] Keep HA credentials in operator-managed Kubernetes Secret or approved external secret manager; never commit Secret values.
 - [ ] Inject secrets only into backend container that requires them.
@@ -614,15 +613,16 @@ Supply chain and platform
 
 - [ ] Dependency audit (`npm audit`) and an image scan (Trivy or Grype) with no open high or critical issue; base image and dependencies pinned; an SBOM generated.
 - [ ] NetworkPolicy enforcement proven with a test pod (needs approval): the dashboard reaches only DNS, the identity provider and the Home Assistant API port; nothing else in the cluster reaches the dashboard.
-- [ ] Whether the `lan-only` allow-list stops traffic from outside the LAN, given the ingress controller's `externalTrafficPolicy: Cluster`; if not, a working alternative.
+- [ ] Proof that the LAN and VPN restriction on the route holds for traffic from outside; if it does not, a working alternative.
 - [ ] Pod Security `restricted`, read-only root filesystem, no service account token, the token mounted read-only.
 
 Result
 
-- [ ] A report in `docs/security-review.md`: method, tools and versions, each finding with severity, fix and the test that proves it. No secret or household detail in it.
-- [ ] Each finding fixed in its own pull request with a test that fails before the fix, or accepted in writing by the owner.
+- [ ] The full report (method, findings, severity, how each was found and fixed) is kept outside the repository, with the owner. It never goes into git, an issue, a pull request or a CI log.
+- [ ] Each finding fixed in its own pull request with a test that fails before the fix, or accepted in writing by the owner. A fix's pull request describes the change, not the weakness: no reproduction steps, payloads or affected versions.
 - [ ] No open critical or high finding.
 - [ ] The owner approves the report. Only then may 7.5 end in a production rollout.
+- [ ] Optional: a short public summary in `docs/security-and-privacy.md`, only after every finding is fixed, and only if it holds nothing an attacker can use and nothing that identifies the household. Not allowed in it: open or accepted findings, how a weakness worked, payloads, internal host or service names, addresses, ports beyond the documented defaults, network layout, cluster or ingress configuration, data schemas (configuration, API or storage formats), entity or area ids, software versions tied to a finding. Allowed: that the review was done, its date, the categories checked and that no finding is open. The owner reads it before it is merged.
 
 ### 7.5 Verification and rollback
 
@@ -631,7 +631,7 @@ Result
 - [ ] Verify remote access works only while connected to VPN.
 - [ ] Verify access from outside LAN/VPN is blocked.
 - [ ] Verify browser cannot reach HA API directly.
-- [ ] Verify HA API traffic stays inside namespace using NetworkPolicy and observed traffic.
+- [ ] Verify HA API traffic stays inside the cluster and only between the two namespaces, using NetworkPolicy and observed traffic.
 - [ ] Verify WebSocket updates and REST commands in-cluster.
 - [ ] Verify secrets absent from Git, image layers, logs, browser assets and CI artifacts.
 - [ ] Test pod restart, HA restart, node rescheduling and reconnect behavior.
@@ -660,7 +660,7 @@ Result
 - [ ] Dashboard runs reliably in k3s.
 - [ ] Browser accesses only dashboard service.
 - [ ] Dashboard backend accesses HA through in-cluster networking only.
-- [ ] HA API is not exposed outside namespace or through public ingress.
+- [ ] HA API is not exposed outside the cluster or through public ingress; inside the cluster only the dashboard namespace reaches it for this application.
 - [ ] Remote dashboard access is possible only over VPN.
 - [ ] No credentials or household-identifying data in public repo, image, logs or CI.
 - [ ] CI tests and security checks pass.
@@ -755,7 +755,7 @@ Mark a task complete only when acceptance evidence exists. Do not mark work comp
 
 ### Status vocabulary
 
-One set of words, used in every table below. Built is not verified, and verified is not approved.
+Phases and areas use one set of words. Built is not verified, and verified is not approved.
 
 | Status | Meaning |
 |---|---|
@@ -766,6 +766,17 @@ One set of words, used in every table below. Built is not verified, and verified
 | Approved | The owner accepted it, recorded in the approval log |
 | Blocked | Cannot continue without an input or approval, named in the notes |
 
+Milestones are tracked in four separate columns, so implemented, tested and independently verified never blur:
+
+| Column | Meaning |
+|---|---|
+| Implemented | Merged on `main` |
+| Tested | Automated tests pass, against fakes (identity provider, Home Assistant), never the real ones |
+| Verified in the preview | Seen working in the cluster preview against the real Home Assistant, checked by someone other than the code's author or with recorded evidence. "Reported" means claimed earlier and not re-checked |
+| Verified on a device | Checked on the real iPad Air 2 or iPhone 13, following `docs/device-testing.md` |
+
+This tracker is the only place that holds milestone status; other documents link here.
+
 ### Current project status
 
 Reconciled 2026-11-23 against the code, the merged pull requests and a read-only look at the cluster.
@@ -774,29 +785,35 @@ Reconciled 2026-11-23 against the code, the merged pull requests and a read-only
 |---|---|---|
 | Phase 0: Preparation | Approved | Stack, repository and privacy baseline in place 2026-11-15 |
 | Phase 1: Design/mockup | Approved | The owner moved on to Phase 2 on 2026-11-15. Two acceptance items stay open: fidelity to the references (owner's judgement) and touch on a real device |
-| Phase 2: Local application | In progress | Approved 2026-11-17. Read-only steps 1 to 6b built; 7 to 10 not started; see the milestone tracker |
+| Phase 2: Local application | In progress | Approved 2026-11-17. Of 11 milestones (steps 1 to 10 and 6b), 7 are implemented (1 to 6 and 6b), none is verified on a device; 7 to 9 not started; 10 blocked |
 | Phase 3: Cluster deployment | Early preview only | The preview runs in the cluster in live, read-only mode since 2026-11-18. Everything else in Phase 3 is not started and needs its own approval |
-| Privacy baseline | Verified | `scripts/privacy-check.mjs` in every verify; history, CI logs and the deployed image checked 2026-11-23 (`docs/security-and-privacy.md`) |
+| Privacy baseline | Verified | `scripts/privacy-check.mjs` in every verify; history, CI logs and every published image checked 2026-11-23 (`docs/security-and-privacy.md`) |
 | Target-device testing | Not started | Only "the preview opens on the iPad Air 2 after login" (2026-11-16, reported). The checklist in `docs/device-testing.md` has not been run on any device |
 
 ### Phase 2 milestone tracker
 
-| Step | Status | Evidence and what is missing |
-|---|---|---|
-| 1. Backend skeleton | Verified | Tests pass; runs in the cluster |
-| 2. OIDC sign-in | Verified (mocked); device check open | Tests against a fake identity provider; live in the preview. Cookie persistence on Safari 15 not tested |
-| 3. Pairing | Built, awaiting verification | Tests pass. Safari 15 cookie test after a restart not done. Gap found 2026-11-23: an open live stream outlives a revoked device |
-| 4. Home Assistant, read-only | Verified | Tests against a fake Home Assistant; the preview's log shows it connected to the real instance and reconnecting once |
-| 5. Configuration in the backend | Built, awaiting verification | Stale writes refused (tests). Sync between devices checked in browsers only |
-| 6. Live states, backend | Built, awaiting verification | Tests pass. Gap found 2026-11-23: one credential-bearing media player attribute is not filtered |
-| 6b. Live states, frontend | Built, awaiting verification | Checked against the fake Home Assistant only; not on the devices |
-| 7. Energy and climate, read-only | Not started | |
-| 8. Network sources | Not started | Needs the field check of the UniFi and Zigbee integrations first |
-| 9. Music, read-only | Not started | |
-| 10. Commands | Blocked | Needs its own approval; tested only with the owner present |
-| 2.14 Styled pages | Verified | Tests |
-| Security review (7.4) | Not started | After step 10; gate before production |
-| 2.15 Pull to close | Built, awaiting verification | Browser only; not on the iPad Air 2 or an iPhone |
+The preview runs the image built from `main` at the review fixes (2026-11-23). Work merged after that is not in the preview yet.
+
+| Milestone | Implemented | Tested | Verified in the preview | Verified on a device |
+|---|---|---|---|---|
+| 1. Backend skeleton | Yes | Yes | Yes: health and sign-in redirect answer (2026-11-23) | n/a |
+| 2. OIDC sign-in | Yes | Yes | Partly: the redirect to sign-in answers; a full sign-in is reported by the owner | **Not tested:** Safari 15 cookie persistence after closing Safari and after a restart |
+| 3. Pairing | Yes | Yes, including that removing a device ends its live stream | No | **Not tested:** pairing on the iPad Air 2 after a Safari restart and after 7 days |
+| 4. Home Assistant, read-only | Yes | Yes | Yes: connected to the real instance, one reconnect seen in the log | n/a |
+| 5. Configuration in the backend | Yes | Yes, including the sync between devices | Reported: browser checks against the real backend | Not tested |
+| 6. Live states, backend | Yes | Yes, including the credential attribute filter | Partly: connected; the states it serves were not inspected | n/a |
+| 6b. Live states, frontend | Yes | Yes | No: checked against the fake Home Assistant only | Not tested |
+| Theme from the sun state | Yes | Yes | No: not in the preview yet | Not tested |
+| Registry changes at once | Yes | Yes | No: not in the preview yet | n/a |
+| 7. Energy and climate, read-only | No | No | No | No |
+| 8. Network sources | No | No | No | No |
+| 9. Music, read-only | No | No | No | No |
+| 10. Commands | No: blocked, needs its own approval | | | |
+| 2.14 Styled pages | Yes | Yes | Reported | Not tested |
+| 2.15 Pull to close | Yes | Yes | n/a | Not tested |
+| Security review (7.4) | No: after step 10, gate before production | | | |
+
+Explicitly outstanding until tested on the hardware: **Safari 15 cookie persistence on the iPad Air 2**, and **all iPhone 13 acceptance** (`docs/device-testing.md`). Neither may be marked done from an emulator or a desktop browser.
 
 ### Approval log
 
@@ -829,9 +846,14 @@ The plan is reviewed by an external reviewer (ChatGPT) at the owner's request. A
 |---|---|---|
 | 2026-11-17 | Done | Answered in `docs/phase-2-architecture.md` ("Where this differs from the review of 2026-11-17") |
 | 2026-11-23 | Done | Status tables reconciled; environments and network decision written down; credential audit; two fixes (#35); security review added as a gate (7.4) |
-| Next | Open, ready for review once #36 and #37 are merged | |
+| 2026-11-23, second round | Done | Personal and infrastructure references removed from the docs; every published image scanned; demo isolation proven and tested; one namespace wording (A8) everywhere; one milestone tracker with implemented, tested and verified kept apart; dedicated credential decision (A3) recorded |
+| Next | Open, ready for review | |
 
 For the next review, read in this order: this section and section 11 (status, approvals); `docs/phase-2-architecture.md` (environments, network); `docs/security-and-privacy.md` (audit); `docs/testing.md` (acceptance, mocked versus real versus device); section 7.4 (security review). Label findings Verified, Reported but not independently verified, Not yet tested, or Documentation inconsistency. Before the next review, every table above says what is true on that date.
+
+### Progress log
+
+Each progress update describes the state on its own date and is not corrected afterwards. The current state is in the tables above.
 
 ### Progress update template
 
@@ -863,7 +885,7 @@ Append an entry whenever meaningful work is completed:
 - Phase: 1 extensions and the early preview (7.0, stage 1).
 - Status: preview live on the wall tablet; Phase 2 still waits for the owner's go.
 - Completed: settings with child lock, version and commit, diagnostics (2.11, 5.8); multi-speaker music card with tabs or a list, groups, temporary groups and stop casting (2.12, 5.9); first-run setup whose choices are all in the settings (2.13, 5.10); credits for the design inspiration in the README; preview image published by a manual workflow for amd64 and arm64; Helm chart in the owner's repository; the identity provider now sends Safari 15 and older to its simplified login page, so the iPad can log in.
-- Tests/evidence: `scripts/verify.sh` passes (lint, 84 unit tests, privacy check); browser checks per feature; the chart's test boots the pinned image as the pod runs it; the login redirect is tested in the cluster's Traefik version and confirmed live; the owner logged in on the iPad.
+- Tests/evidence: `scripts/verify.sh` passes (lint, 84 unit tests, privacy check); browser checks per feature; the chart's test boots the pinned image as the pod runs it; the login redirect is tested in the cluster's ingress controller version and confirmed live; the owner logged in on the iPad.
 - Privacy/security review: passed for every change. Images hold demo data only, no token anywhere.
 - Blockers: none.
 - Approval needed: go for Phase 2. Decisions for it: how speaker group members are learned (2.12), sign-in mode and pairing (2.13), whether the backend lives in the Home Assistant namespace or its own (7.0).
@@ -874,7 +896,7 @@ Append an entry whenever meaningful work is completed:
 - Approval: the owner gave the go for step 4, the read-only Home Assistant connection, including connecting to the live instance.
 - Completed: steps 2 and 3 (OIDC sign-in, pairing) are live; every page uses the site's style (2.14); step 4 built: live mode with a read-only WebSocket client, tested against a fake Home Assistant.
 - Verified: a non-admin user may list floors, areas, devices and entities (Home Assistant 2026.11.1 source, no admin check on those commands).
-- Live: the preview runs in live mode and is connected to Home Assistant (2026.11.1), read-only. Token: the non-admin one Mira uses, resealed for the dashboard (owner's choice); rotating it in Mira means resealing it for the dashboard too.
+- Live: the preview runs in live mode and is connected to Home Assistant (2026.11.1), read-only. Token: the non-admin token another application already uses, resealed for the dashboard (owner's choice, temporary; see decision A3).
 - Decided: no "Connect" button in step 5. It is parked as an optional feature for installs without GitOps, with its trade-offs in `docs/phase-2-architecture.md`. Step 5 is the backend configuration store.
 - A paired tablet has no edit buttons for the household layout; it is changed on a phone (owner's choice).
 - Step 6, backend half: live states from Home Assistant, cleaned of credentials and context, served to signed-in sessions as a snapshot and a stream.
@@ -892,6 +914,15 @@ Append an entry whenever meaningful work is completed:
 - Approval needed: see section 11, approval boundaries, and the review summary.
 - Later that day (items 4 to 6): Automatic theme follows Home Assistant's sun entity in live mode; registry changes reach the browser at once; the configuration sync has its own tests. Checked against the fake Home Assistant and in a browser; not on the devices.
 
+
+## Progress update: 2026-11-23, second review round
+
+- Phase: 2 (documentation and one test; nothing deployed).
+- Completed: references to a private application, the private chart repository, the storage type, the ingress controller and the identity provider product removed from the docs (the product stays only as a setup example); the full security review report stays outside the repository (7.4); demo and preview defined once; namespace wording follows A8 everywhere; the milestone tracker now separates implemented, tested, verified in the preview and verified on a device; decision A3 records one dedicated token per application.
+- Tests/evidence: a new test runs the backend as the image does and proves a demo with Home Assistant settings exits before connecting, even to a reachable Home Assistant with a valid token (fails when the refusal is removed); every published image version scanned with a planted control.
+- Privacy/security review: no credential found anywhere, so none needs rotating.
+- Blockers: the dashboard's own token (item 10) and the device checklists (item 11) need the owner.
+
 ## 12. Open questions / required inputs
 
 Resolve these at the appropriate gate; do not block the planning document on details that can safely wait.
@@ -904,11 +935,11 @@ Resolve these at the appropriate gate; do not block the planning document on det
 - [x] Owner: confirm the namespace decision A8 (own namespace, as deployed) as authoritative (section 2.6). Confirmed 2026-11-23.
 - [ ] Confirm desired LAN/VPN access enforcement point during Phase 3 review. Direction 2026-11-15: forward auth at the ingress. Replaced 2026-11-17: OIDC by the backend (or a Home Assistant account), live in the preview.
 - [ ] Confirm minimum browser versions after checking iPad Air 2 installed iOS/Safari version. Assumed Safari 15 (iPadOS 15.8 is the last release for that model); the installed version is not confirmed.
-- [ ] Owner: create a second long-lived token for the dashboard's Home Assistant user and seal it for the dashboard, so it no longer shares Mira's token and each can be revoked on its own.
+- [ ] Owner: create a long-lived token for the dashboard's own Home Assistant user, so it no longer shares another application's token (decision A3, review item 10, approved 2026-11-23).
 - [ ] Phase 2: confirm which Zigbee integration is in use and which fields the UniFi and Zigbee integrations expose through Home Assistant.
 - [ ] Phase 2: which of the owner's speakers report the grouping capability, and how group membership is learned (section 2.12).
 - [x] Phase 3: NetworkPolicy is enforced (verified 2026-11-01 in the helm-charts repo) and Home Assistant does not use host networking (checked 2026-11-17, read-only). (Answered 2026-11-16: the identity provider's normal login page does not work in Safari 15; its simplified page does, and the cluster now redirects old Safari there.)
 
 ## 13. Definition of done
 
-The project is complete when all three phases pass acceptance criteria and approvals; the dashboard reproduces the four approved views; English/Dutch switching is immediate; theme modes behave correctly and remain readable; the iPhone layout hides large artwork in favor of a usable compact interface; iPad Air 2 and iPhone 13 have been tested; required integrations work through REST and WebSocket; local-first and VPN-only access rules are verified; HA API traffic stays inside the Kubernetes namespace; and public repository, CI, images, logs and documentation contain no secrets or household-identifying information.
+The project is complete when all three phases pass acceptance criteria and approvals; the dashboard reproduces the four approved views; English/Dutch switching is immediate; theme modes behave correctly and remain readable; the iPhone layout hides large artwork in favor of a usable compact interface; iPad Air 2 and iPhone 13 have been tested; required integrations work through REST and WebSocket; local-first and VPN-only access rules are verified; HA API traffic stays inside the cluster, between the dashboard and Home Assistant namespaces only; and public repository, CI, images, logs and documentation contain no secrets or household-identifying information.

@@ -44,20 +44,29 @@ CI does not print environment variables and has read-only repository permissions
 
 ## Audit 2026-11-23
 
-Checked without reproducing any value. Labels: **verified** (checked now), **reported** (earlier claim, not re-checked), **gap** (a problem found).
+Checked without reproducing any value. This summary follows the rule of plan section 7.4: it says what was checked and the result, not how a weakness worked. The detailed notes are kept outside the repository.
 
 | Check | Result |
 |---|---|
-| Token in frontend code | Verified: no frontend file handles a token or the Home Assistant address; only the backend reads the token file |
-| Token in API responses | Gap: a media player's `entity_picture_local` attribute carries a short-lived Home Assistant access token (Home Assistant 2026.11.1 source) and passes the attribute filter. None was present in the live states when checked. Everything else in `/api/ha*` is verified clean by tests |
+| Token in frontend code | Verified: no frontend file handles a token or the Home Assistant address |
+| Token in API responses and the live stream | Verified after a fix on 2026-11-23 (#35): credential-bearing attributes are filtered, with a test |
 | Logs | Verified: the code logs error names and codes only; the running pod's log holds connection events only |
-| Sessions and pairing | Verified: random 32-byte ids, stored hashed, `__Host-` cookies with `HttpOnly`, `Secure`, `SameSite=Lax`; 8-character codes valid 5 minutes, five misses lock out. Gap: an open live stream is not closed when its device is removed or its session ends |
-| Public image | Verified on the deployed digest: no `.env`, git data, configuration, tests or credentials in the layers; its environment sets demo mode only |
-| Export and import | Verified: the export is the normalized configuration (labels, area and entity ids, card layout); no credentials; the child lock is left out. It identifies the household, so keep it private |
-| Error messages | Verified: the API answers with generic errors; startup errors name a setting, never its value. `/api/ha` tells a signed-in user the Home Assistant version |
-| Git history | Verified: every commit on every branch scanned for addresses, tokens, keys, credential assignments, sealed values and household terms. Two hits, both deliberate: a labelled test token in the fake Home Assistant and a documentation address (RFC 5737) |
-| CI | Verified: logs of all 42 runs scanned, clean. No artifacts, releases or issues exist |
-| Older images | Not checked: only the deployed digest was inspected |
+| Sessions and pairing | Verified: random ids stored hashed, `__Host-` cookies with `HttpOnly`, `Secure`, `SameSite=Lax`, short-lived pairing codes with a guess limit. A removed device's open stream ends at once since #35 |
+| Public images | Verified: all 19 published versions scanned for credential files and token patterns (with a planted control); none found. Their environment sets demo mode only |
+| Export and import | Verified: no credentials; the child lock is left out. An export identifies the household, so keep it private |
+| Error messages | Verified: generic errors; startup errors name a setting, never its value |
+| Git history, pull requests, CI | Verified: every commit on every branch, all pull request texts and comments, and all CI logs scanned; no credential. Two deliberate test values only (a labelled test token, a documentation address) |
+| Personal and account references | Removed from the current documentation on 2026-11-23. Older commits and two pull request descriptions mentioned a private application's name; no credential, so history is not rewritten |
+| Exposed credential to rotate | None found |
+
+## Demo isolation
+
+The demo cannot read Home Assistant. Verified 2026-11-23 with the public image, and kept true by a test (`tests/backend/demo.test.js`):
+
+- With any `HASS_` or `HOME_ASSISTANT_` setting the backend refuses to start, before it opens any connection, even when a Home Assistant is reachable and the token is valid.
+- In demo mode every Home Assistant path of the API answers 404 and `/api/info` says `demo`.
+- The page may only connect to its own backend (`connect-src 'self'`), so a browser cannot reach Home Assistant either.
+- There is no hosted public demo. The only deployment is the private, sign-in protected preview.
 
 ## Reporting a problem
 
