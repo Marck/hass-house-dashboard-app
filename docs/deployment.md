@@ -7,12 +7,12 @@ Only the **early preview** is approved: first the demo, since 2026-11-18 the liv
 | Part | Where | State |
 |---|---|---|
 | Image | `Containerfile` and `app/backend` here; published by the Image workflow to the GitHub container registry | Published 2026-11-16: public, amd64 and arm64 |
-| Chart | `apps/house-dashboard` in the owner's Helm repository | Merged; live, read-only, OIDC sign-in (checked 2026-11-23) |
+| Chart | A separate, private Helm repository | Merged; live, read-only, OIDC sign-in (checked 2026-11-23) |
 | Rollout | A merge there, synced by the cluster's GitOps tooling | Running; the image digest is pinned in the chart |
 
-The image runs the Node backend (`app/backend`), which serves the frontend. In demo mode (the default) it serves synthetic data and refuses to start when any `HASS_` or `HOME_ASSISTANT_` setting is present. In live mode it reads Home Assistant, read-only (see below). The same image does both. It runs as a non-root user with a read-only root filesystem; it writes only to the data volume. It listens on port 8080 and answers `/healthz` for probes. Since 2026-11-17 the preview signs people in itself with OIDC against authentik (`AUTH_MODE=oidc`); there is no forward-auth at the ingress any more.
+The image runs the Node backend (`app/backend`), which serves the frontend. In demo mode (the default) it serves synthetic data and refuses to start when any `HASS_` or `HOME_ASSISTANT_` setting is present. In live mode it reads Home Assistant, read-only (see below). The same image does both. It runs as a non-root user with a read-only root filesystem; it writes only to the data volume. It listens on port 8080 and answers `/healthz` for probes. Since 2026-11-17 the preview signs people in itself with OIDC against the identity provider (`AUTH_MODE=oidc`); there is no forward-auth at the ingress any more.
 
-The chart runs it in its own namespace: Pod Security `restricted`, inbound from the ingress controller and the uptime monitor only, outbound to DNS, authentik and the Home Assistant API port only, the image pinned by digest. Its test boots the pinned image the way the pod runs it.
+The chart runs it in its own namespace: Pod Security `restricted`, inbound from the ingress controller and the uptime monitor only, outbound to DNS, the identity provider and the Home Assistant API port only, the image pinned by digest. Its test boots the pinned image the way the pod runs it.
 
 To publish: Actions, Image, Run workflow. It builds for amd64 and arm64 and pushes the commit SHA and the channel name as tags. The package is public, so the cluster needs no pull secret. A new build is deployed by putting its digest in the chart.
 
@@ -40,7 +40,7 @@ Settings, About in the running dashboard shows the commit the image was built fr
 | `HASS_URL` | | Live: the http(s) address of Home Assistant, for example its Service inside the cluster. Never sent to the browser |
 | `HASS_TOKEN_FILE` | | Live: file holding the long-lived token (a mounted Secret). Preferred over `HASS_TOKEN`; set exactly one. Re-read on every reconnect |
 | `AUTH_MODE` | `none` | `oidc` turns on the backend's own sign-in; everything but `/healthz` then needs a session |
-| `OIDC_ISSUER` | | Issuer URL of the identity provider, https only. For authentik: `https://<authentik host>/application/o/<slug>/` |
+| `OIDC_ISSUER` | | Issuer URL of the identity provider, https only. For example, with authentik: `https://<host>/application/o/<slug>/` |
 | `OIDC_CLIENT_ID` | | Client id of the provider |
 | `OIDC_CLIENT_SECRET` | | Client secret; from a Secret, never in values |
 | `PUBLIC_URL` | | The dashboard's own https URL; the redirect URI is `PUBLIC_URL/auth/callback` |
@@ -51,12 +51,12 @@ Any variable starting with `HASS_` or `HOME_ASSISTANT_` stops the demo from star
 
 ### Live mode: the Home Assistant user and token
 
-1. In Home Assistant, Settings, People, add a person with "Can log in" on and "Administrator" off. A non-admin user is enough: listing floors, areas, devices and entities needs no admin rights (checked in the 2026.11.1 source).
+1. In Home Assistant, Settings, People, add a person for the dashboard alone (decision A3: never reuse another application's user or token) with "Can log in" on and "Administrator" off. A non-admin user is enough: listing floors, areas, devices and entities needs no admin rights (checked in the 2026.11.1 source).
 2. Log in as that user, open its profile, Security, and create a long-lived access token. Copy it once; it is not shown again.
 3. Seal it straight from the clipboard, so it never lands in a file or the shell history (macOS shown):
 
    ```bash
-   pbpaste | tr -d '\n' | kubeseal --raw --controller-name sealed-secrets --controller-namespace kubeseal --scope namespace-wide --namespace <dashboard namespace>
+   pbpaste | tr -d '\n' | kubeseal --raw --controller-name <controller> --controller-namespace <controller namespace> --scope namespace-wide --namespace <dashboard namespace>
    ```
 
 4. Put the output in the chart's sealed Secret and mount it; point `HASS_TOKEN_FILE` at the mounted file.
@@ -65,7 +65,7 @@ The backend connects over Home Assistant's WebSocket API and can send only the a
 
 For local development: `DASHBOARD_MODE=live HOST=127.0.0.1 HASS_URL=http://<address>:8123 HASS_TOKEN_FILE=<file outside the repo> node app/backend/main.js`.
 
-In authentik, create an OAuth2/OpenID provider (confidential client, authorization code, redirect URI as above, scopes `openid profile`) and an application bound to the group that may use the dashboard. The pod needs egress to the identity provider.
+In the identity provider (for example authentik), create an OAuth2/OpenID provider (confidential client, authorization code, redirect URI as above, scopes `openid profile`) and an application bound to the group that may use the dashboard. The pod needs egress to the identity provider.
 
 ## Intended design
 
