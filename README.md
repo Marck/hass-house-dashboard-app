@@ -2,7 +2,7 @@
 
 A custom dashboard for Home Assistant: a whole-home overview with an interactive floor plan, a room detail sheet, an energy screen and a network screen. English and Dutch, light and dark.
 
-**Status: Phase 2 in progress (step 3 of 10).** The UI is complete and runs on synthetic demo data, served by a small Node backend with OIDC sign-in and device pairing for a wall tablet. It does not connect to Home Assistant yet; see [docs/phase-2-architecture.md](docs/phase-2-architecture.md).
+**Status: Phase 2 in progress.** A small Node backend serves the UI with OIDC sign-in and device pairing for a wall tablet. In demo mode it shows synthetic data; in live mode it reads Home Assistant, read-only. No device commands yet. Step status: [PROJECT_PLAN.md](PROJECT_PLAN.md), section 11.
 
 ## Features
 
@@ -18,9 +18,9 @@ A custom dashboard for Home Assistant: a whole-home overview with an interactive
 
 | Phase | Scope | Status |
 |---|---|---|
-| 1 | Mocked UI on synthetic data | Done |
-| 2 | Live Home Assistant through a small backend, run locally | Approved, next |
-| 3 | Deployment on Kubernetes | Early preview of the demo only; the rest needs Phase 2 |
+| 1 | Mocked UI on synthetic data | Approved |
+| 2 | Live Home Assistant through a small backend, run locally | In progress, read-only |
+| 3 | Deployment on Kubernetes | Early preview only (live, read-only); the rest needs its own approval |
 
 Requirements, decisions and the approval log are in [PROJECT_PLAN.md](PROJECT_PLAN.md).
 
@@ -108,7 +108,7 @@ docs/                architecture, design system, testing, deployment, privacy
 
 ## Deploy on Kubernetes
 
-Only the early preview exists: the demo as a container image, with a chart in the owner's Helm repository, for testing on the real tablet. The image, how to run it with podman and the intended design for the live version are in [docs/deployment.md](docs/deployment.md).
+Only the early preview exists: one container image for demo and live mode, with a chart in the owner's Helm repository, for testing on the real tablet. There is no public hosted demo. The image, how to run it with podman and the intended design for the live version are in [docs/deployment.md](docs/deployment.md).
 
 ## Contributing
 

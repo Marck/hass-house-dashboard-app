@@ -1,6 +1,6 @@
 # Phase 2 architecture and breakdown
 
-Status: approved 2026-11-17. The owner gave the go for Phase 2 and decided: OIDC sign-in (A5), a Node backend (A1), device sessions of 30 days (A7), and the Home Assistant account as the local sign-in instead of the dashboard's own accounts (A6). Steps 1 to 4 are built.
+Status: approved 2026-11-17. The owner gave the go for Phase 2 and decided: OIDC sign-in (A5), a Node backend (A1), device sessions of 30 days (A7), and the Home Assistant account as the local sign-in instead of the dashboard's own accounts (A6). Step status: the milestone tracker in the project plan, section 11.
 
 ## Decisions
 
@@ -13,21 +13,31 @@ Status: approved 2026-11-17. The owner gave the go for Phase 2 and decided: OIDC
 | A5 | Sign-in | OIDC against authentik, done by the backend, instead of forward-auth at the ingress | See "Authentication" below: with forward-auth in front, a paired tablet would still need an authentik session, which is the problem pairing exists to solve |
 | A6 | Second sign-in mode | Home Assistant account, for installations without an identity provider | The first-run setup offers it; no password store of our own |
 | A7 | Tablet | Device pairing, with its own session of 30 days | Safari 15 login and session length, seen 2026-11-16 |
-| A8 | Namespace | Its own namespace, as the preview | Verified: Home Assistant does not use host networking, so a policy on its namespace protects it; the cluster enforces NetworkPolicy (checked 2026-11-01, connection refused without an allow rule); the Home Assistant chart already admits named namespaces one by one |
+| A8 | Namespace | Its own namespace, as the preview. Runs this way since 2026-11-18; proposed as authoritative 2026-11-23, awaiting the owner's confirmation (see Network architecture) | Verified: Home Assistant does not use host networking, so a policy on its namespace protects it; the cluster enforces NetworkPolicy (checked 2026-11-01, connection refused without an allow rule); the Home Assistant chart already admits named namespaces one by one |
 | A9 | Speaker groups | Members configured by the user, as in the mock | Home Assistant does not expose Cast group members; inferring them would be a guess |
 | A10 | Storage | JSON files with atomic replace on a small volume, single replica | A configuration, a few sessions and paired devices; no database needed. SQLite on the cluster's NFS volumes is avoided (file locking) |
 
 ## Environments
 
-| | Mock / demo | Development | Production |
-|---|---|---|---|
-| Data | Synthetic, built into the image | Live Home Assistant | Live Home Assistant |
-| Home Assistant credential | None. The build refuses one | Token of a dedicated dev user, local `.env` outside the repo | Token in a sealed Secret |
-| Commands | Simulated | Off by default; a switch, only with the owner present | On, limited by the allow-list (A4) |
-| Sign-in | OIDC by the backend (the preview, since 2026-11-17) | Local only, or proxy headers from a test proxy | OIDC or Home Assistant account, plus pairing |
-| Where | Preview image in the cluster | The developer's machine, loopback only | Cluster |
+Checked 2026-11-23: the code, the chart on the Helm repository's main branch, and the running deployment (read-only).
 
-The mode is fixed at startup and shown under Settings, About. A demo image contains no backend code that could talk to Home Assistant.
+| | Local demo | Local live | Cluster preview | Production |
+|---|---|---|---|---|
+| Exists | Yes, on demand | Yes, on demand | Yes, since 2026-11-16 | No |
+| Data | Synthetic, in the frontend | Live Home Assistant, read-only | Live Home Assistant, read-only (since 2026-11-18) | Live, with commands |
+| Backend runs | Developer's machine (`node app/backend/main.js` or `scripts/serve.py`) | Developer's machine, loopback only | Its own namespace in the cluster | Not decided beyond A8 |
+| Home Assistant credential | None; the backend refuses to start with any Home Assistant setting | Token file outside the repository | Sealed Secret in the dashboard namespace, mounted as a file | Sealed Secret |
+| Sign-in | None | None; refused unless it listens on loopback | OIDC, plus pairing | OIDC or Home Assistant account, plus pairing |
+| Reachable from | The machine, or the LAN with `serve.py` | The machine only | LAN and VPN only: its host name resolves only on the LAN's DNS and the tunnel does not route it | To be approved |
+| Commands | Simulated | None | None (no service call exists in the code) | Step 10, after approval |
+
+What this means:
+
+- **There is no public hosted demo.** The public artifacts are this repository and the image. The image starts in demo mode by default.
+- **The image is the same for demo and live.** It contains the read-only Home Assistant client; the mode is chosen at startup. A demo cannot reach Home Assistant because the backend refuses to start with any `HASS_` or `HOME_ASSISTANT_` setting (tested), and without a token and a network path there is nothing to connect with. Anyone running the public image would need their own token and network access to a Home Assistant to get live data.
+- **Development and production share one Home Assistant.** There is no separate development instance. Local live runs read the same house, read-only. Separation is by token and by the backend's read-only command list, not by instance.
+- **The cluster preview is the live environment.** It is not a demo any more, and it is not production: it has no commands and no production approval.
+- The preview uses the same non-admin token as another application (owner's choice, 2026-11-18). A dashboard token of its own is an open item in the plan.
 
 ## Authentication
 
@@ -43,13 +53,26 @@ Proposal:
 
 To verify on the iPad Air 2 before relying on it: that a server-set cookie survives closing Safari and restarting the tablet, and still works after more than 7 days (Safari's tracking prevention limits some storage to 7 days; it should not apply to a first-party `HttpOnly` cookie, but that is to be measured, not assumed). Whether Home Assistant's login page renders on Safari 15 is also unverified.
 
-## Network permissions (cluster)
+## Network architecture
 
-| Direction | Allowed | Everything else |
-|---|---|---|
-| Inbound | Ingress controller to the backend port; Gatus to `/healthz` | Denied |
-| Outbound | DNS; the Home Assistant Service on its API port; authentik for OIDC | Denied |
-| Home Assistant side | Its namespace admits the dashboard namespace on the API port, like the existing allow rules for other apps | Unchanged |
+Proposed as the one authoritative decision on 2026-11-23, awaiting the owner's confirmation. It describes what runs since 2026-11-18; nothing changes until the owner decides.
+
+| Item | Decision |
+|---|---|
+| Backend namespace | Its own namespace, default-deny (A8) |
+| Frontend namespace | The same pod: the backend serves the frontend. No separate frontend workload |
+| Home Assistant access | Backend to the Home Assistant Service's cluster DNS name on the API port, WebSocket, cluster-internal only. The browser never talks to Home Assistant |
+| Ingress | Ingress controller to the backend port; uptime monitor to `/healthz`. Everything else denied |
+| Egress | DNS; the identity provider (through the ingress controller pod, as the cluster resolves its host there); the Home Assistant namespace on the API port. Everything else denied |
+| Home Assistant side | Its namespace admits the dashboard namespace on the API port only |
+| DNS | Cluster DNS for the Home Assistant Service and the identity provider. The dashboard's host name exists only on the LAN's DNS |
+| Host networking | Home Assistant does not use host networking (checked 2026-11-17 and again 2026-11-23 on the running pod), so a NetworkPolicy on its namespace does protect it |
+
+Why its own namespace and not Home Assistant's: the Helm repository gives every chart its own default-deny namespace, and the Home Assistant namespace allows traffic within itself. Inside it, the dashboard would reach every port of Home Assistant and its companions; in its own namespace it reaches one port, by an explicit rule on both sides.
+
+Verified 2026-11-23: the policies above in the chart; host networking off; the host name has no public DNS record; the tunnel routes other host names only. Reported, not re-verified: that the cluster enforces NetworkPolicy (checked 2026-11-01; the read-only account cannot list policies, and proving enforcement needs a test pod, which is a cluster change).
+
+Recommended, not done: an IP allow-list for the LAN and VPN ranges on the dashboard's route, so the LAN-only property does not rest on DNS alone. It is a chart change and needs approval.
 
 The backend never takes a URL from a request to connect to. It has no proxy endpoint, so it cannot be used as a way into the internal network. Trust boundaries: the browser trusts nothing it is sent beyond display data; the backend trusts the browser only after a valid session; Home Assistant trusts the backend's token, limited by A4.
 
@@ -62,7 +85,7 @@ Each step is one or a few small pull requests, merged only with green checks, an
 3. **Pairing** (done): without a session a visitor chooses between signing in and pairing. The tablet shows an 8-character code (5 minutes) bound to it by a cookie; a signed-in person types it under Settings, Devices, names the device and confirms. The device session lasts 30 days from its last use and is kept (hashed) in `DATA_DIR/devices.json`, so restarts keep tablets in. A device cannot pair or remove devices; five wrong codes block a person for five minutes. Still to do: the Safari 15 cookie test on the tablet.
 4. **Home Assistant connection, read-only** (built): `DASHBOARD_MODE=live`, token from a mounted file, WebSocket connect, reconnect with backoff and a keep-alive, registry discovery (floors, areas, devices, entities) refreshed on every connect and every 15 minutes. Only the commands in `READ` can be sent; tested against a fake Home Assistant. A non-admin user suffices (checked in the 2026.11.1 source). Live since 2026-11-18, with the non-admin token Mira also uses, resealed for the dashboard's namespace.
 5. **Configuration in the backend** (built): `DATA_DIR/config.json`, replaced atomically (A10), at `/api/config` with a revision, so a save based on an older one is refused (409) and the newer version shown. A person saves, a paired device only reads and shows no edit buttons; the browser keeps a cache and checks for changes every minute. The first person to sign in brings their browser's configuration along. A device that finds a configuration skips the setup. Export and import stay as they were. Not yet: per-device setup steps and a migration between configuration versions (there is one version so far).
-6. **Live states** (backend built): `subscribe_entities` (no admin needed, checked in the 2026.11.1 source), states kept in memory, cleaned of context and credential-bearing attributes, at `/api/ha/states` and as server-sent events at `/api/ha/stream` (batched every 0.5 s, every state again after a reconnect, at most 20 streams). Tested against the fake Home Assistant. 6b (built): in live mode the frontend waits for the first states (so no demo data appears as if it were the house), then builds the same data shape as the demo from them (`app/frontend/js/live.js`): Home Assistant areas become rooms, its floors become floors (areas without one go on "Other"), and lights, switches, climate, media players, door and motion binary sensors and temperature sensors fill the rooms. Names are shown as literal, escaped text. Unavailable and removed entities show as unavailable. Controls answer "read-only for now" until step 10. Energy, network, watering, the evening card and EV charging keep demo data and say so; made-up people, weather and the camera event are not shown.
+6. **Live states** (backend built, gap found 2026-11-23, see the plan's tracker): `subscribe_entities` (no admin needed, checked in the 2026.11.1 source), states kept in memory, cleaned of context and credential-bearing attributes, at `/api/ha/states` and as server-sent events at `/api/ha/stream` (batched every 0.5 s, every state again after a reconnect, at most 20 streams). Tested against the fake Home Assistant. 6b (built): in live mode the frontend waits for the first states (so no demo data appears as if it were the house), then builds the same data shape as the demo from them (`app/frontend/js/live.js`): Home Assistant areas become rooms, its floors become floors (areas without one go on "Other"), and lights, switches, climate, media players, door and motion binary sensors and temperature sensors fill the rooms. Names are shown as literal, escaped text. Unavailable and removed entities show as unavailable. Controls answer "read-only for now" until step 10. Energy, network, watering, the evening card and EV charging keep demo data and say so; made-up people, weather and the camera event are not shown.
 7. **Energy and climate, read-only.**
 8. **Network sources** (UniFi, Zigbee), after checking which fields they really expose.
 9. **Music**, read-only first.
@@ -80,15 +103,7 @@ Discussed and parked on 2026-11-18. The idea: someone signs in at Home Assistant
 
 ## Tests
 
-Deterministic, with a fake Home Assistant (a small WebSocket and REST server in the test suite), never the real one.
-
-- Sign-in: missing, expired and forged sessions; wrong OIDC state; logout.
-- Pairing: expired code, reused code, approval by a device session (refused), revoked device.
-- API: every endpoint without a session, with a device session where a person is required.
-- Home Assistant: connection refused, bad token, disconnect mid-subscription, reconnect with state resync.
-- Data: missing and unavailable entities, attributes absent, configuration from an older version.
-- Commands: outside the allow-list, unsupported by the entity, Home Assistant error.
-- Privacy: no token, session or Home Assistant address in any response, log line or export.
+Automated tests use a fake Home Assistant (a small WebSocket server in the test suite), never the real one. What has been seen on the real instance is listed separately in [testing.md](testing.md#read-only-integration-acceptance), with the gaps.
 
 Device checklists stay separate for the iPad Air 2 and the iPhone 13 (`docs/device-testing.md`).
 

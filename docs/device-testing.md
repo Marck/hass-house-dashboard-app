@@ -16,7 +16,7 @@ This serves the demo, which holds synthetic data only.
 
 **Do not serve a live backend this way.** Without a login in front of it, anyone on the network could control the house. The live application reaches a tablet through the cluster deployment behind the identity provider, described in [deployment.md](deployment.md).
 
-**From the cluster:** once the preview deployment exists, open its address and sign in.
+**From the cluster:** open the preview's address and sign in, or pair the device. The preview shows live data, read-only.
 
 ## What the dashboard tells you
 
@@ -42,6 +42,13 @@ Do this in portrait and landscape, in the light and the dark theme, in English a
 | Child lock | Lock now. Controls answer with "Locked" and nothing switches. Hold for 3 seconds unlocks; letting go early does not. With a PIN, a wrong PIN is refused. It locks again by itself after the set time. |
 | Phone | No floor plan, illustration or map; lists instead. The navigation sits at the bottom. |
 | Endurance | Leave it open for an hour. It still responds and has not drifted. |
+| Sign-in | Sign in with OIDC. Close Safari, reopen: still signed in within the session time. |
+| Pairing | Pair the tablet. Close Safari, restart the tablet: still paired. Again after more than 7 days. Remove it under Settings on a phone: the tablet is out at once, including the live view. |
+| Live updates | Switch a light by hand or in Home Assistant: the dashboard follows within seconds. Lock and wake the tablet, switch Wi-Fi off and on: the live view recovers without a reload. |
+| Floor plan | Every room responds to the first tap; no tap lands on a neighbour. Pinch and scroll do not move the page sideways. |
+| Sheets and scrolling | Long sheets scroll inside; the page behind does not. Pull to close as above. |
+| Themes | Light, Dark and Automatic in the settings; the choice survives a reload and a Safari restart. Floor plan labels, error bar, dialogs and settings are readable in both themes. |
+| Performance | Over the hour, Safari never reloads the tab by itself and taps answer without delay. |
 
 A failure is anything that needs a second tap, anything cut off or overlapping, text below roughly 13 px, a red bar, or a failed diagnostic.
 
@@ -53,4 +60,4 @@ A failure is anything that needs a second tap, anything cut off or overlapping, 
 
 ## Record the result
 
-Note the device, the system version, the commit from Settings, About, and what failed, in the test report in [testing.md](testing.md). Do not add screenshots that show names you typed.
+Note the device, the system version, the commit from Settings, About, whether it was a real device or an emulator, and what failed, in the test report in [testing.md](testing.md). Do not add screenshots that show names you typed.

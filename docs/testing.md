@@ -83,3 +83,40 @@ No console or Content-Security-Policy errors in any of these.
 - Performance on old hardware.
 
 These belong to the device checks in the plan and need the hardware.
+
+## Read-only integration acceptance
+
+Status 2026-11-23. "Mocked" is the automated suite against the fake Home Assistant; "real" is the live instance, read-only. There is no separate development instance, so a real check reads the house.
+
+| Case | Mocked | Real instance |
+|---|---|---|
+| Authentication failure | Tested: a refused token is reported, retried after 5 minutes, never logged | Not tested |
+| Missing or unavailable entities | Tested: shown as unavailable; a configured entity that does not exist is reported | Not tested |
+| WebSocket disconnect and reconnect | Tested: reconnect with backoff, registry and every state sent again | Seen once in the preview's log (lost, then connected); the resync itself not observed |
+| Registry changes | Not tested. The registry is reloaded every 15 minutes and on reconnect only, so a renamed area can take 15 minutes to show | Not tested |
+| Stale configuration writes | Tested: a save based on an older revision is refused with the current state | Reported: browser check against the real backend (progress log, 2026-11-18 to 22) |
+| Session revocation | Tested for requests: a removed device is refused at once. Gap: its open live stream continues | Not tested |
+| Unauthorized requests | Tested: every API path without a session answers 401; a device cannot write the configuration or manage devices | Not tested |
+| Several devices in sync | Partly: the store and revisions are tested; the one-minute check in the browser is not | Reported: a fresh browser showed the stored configuration; not on the real devices |
+
+No device command exists in the code, so none of these checks can switch anything.
+
+## Device and theme acceptance
+
+Status 2026-11-23. Nothing below has been run on a real device. Emulated viewports and lint rules do not count as device evidence.
+
+| Area | iPad Air 2, Safari 15 | iPhone 13 | Desktop |
+|---|---|---|---|
+| OIDC sign-in and cookie after a Safari restart | Opened after login once (2026-11-16, reported); persistence not tested | Not tested | Reported working in the browser |
+| Pairing after a Safari restart and after 7 days | Not tested | n/a | n/a |
+| Live updates and reconnect | Not tested | Not tested | Fake Home Assistant only |
+| Floor plan, touch, scrolling, sheets | Not tested | Not tested | Emulated viewports only |
+| Memory and performance over an hour | Not tested | Not tested | Not tested |
+| Light and dark on every screen | Not tested | Not tested | Emulated, mock data (2026-11-15); not with live data |
+
+Theme facts:
+
+- Contrast: WCAG AA for the text pairs of both themes is a unit test and passes.
+- Manual choice: stored on the device; not yet checked on a device after a reload or a Safari restart.
+- Automatic follows the sun state, as the plan defines it (2.5), not the system's light or dark setting. Gap: in live mode it still uses the mock sun state; Home Assistant's sun entity is not wired in yet.
+- The live frontend was not compared screen by screen with the mock design in the dark theme.
