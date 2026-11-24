@@ -10,7 +10,7 @@ export const CONFIG_VERSION = 1;
 export const LABEL_MAX = 40;
 export const CARDS = {
   home: ['lights', 'music', 'irrigation', 'tonight'],
-  energy: ['battery', 'balance', 'consumption', 'ev'],
+  energy: ['battery', 'balance', 'consumption', 'utilities', 'ev'],
   network: ['stats', 'map', 'wan'],
 };
 /** Optional cards start hidden. */
@@ -26,6 +26,12 @@ export const EV_ACCEPTS = {
   cost: ['monetary'],
 };
 export const NET_SOURCES = ['unifi', 'zigbee'];
+/**
+ * Live power readings for the energy screen. 'auto' takes the sensor Home
+ * Assistant's Energy settings name, null shows nothing, an id is the user's pick.
+ */
+export const ENERGY_SLOTS = ['solar', 'grid', 'house', 'battSoc', 'battPower'];
+export const ENERGY_ACCEPTS = { solar: ['power'], grid: ['power'], house: ['power'], battSoc: ['battery'], battPower: ['power'] };
 /** Playback details on the music card that can be switched off. */
 export const MUSIC_SHOW = ['artwork', 'artist', 'room'];
 export const MUSIC_FLAGS = ['multi', 'overview'];
@@ -56,6 +62,7 @@ export function defaultConfig(d) {
     rooms,
     cards,
     ev: { map: Object.fromEntries(EV_SLOTS.map((slot) => [slot, null])), hide: [] },
+    energy: { map: Object.fromEntries(ENERGY_SLOTS.map((slot) => [slot, 'auto'])) },
     net: { unifi: true, zigbee: true },
     music: defaultMusic(d),
   };
@@ -121,6 +128,9 @@ export function normalizeConfig(raw, d) {
     map: Object.fromEntries(EV_SLOTS.map((slot) => [slot, isId(rawMap[slot]) ? rawMap[slot] : null])),
     hide: (Array.isArray(rawEv.hide) ? rawEv.hide : []).filter((slot) => EV_SLOTS.includes(slot)),
   };
+  const rawEnergy = raw.energy && raw.energy.map && typeof raw.energy.map === 'object' ? raw.energy.map : {};
+  const energySlot = (v) => (v === null || isId(v) ? v : 'auto');
+  const energy = { map: Object.fromEntries(ENERGY_SLOTS.map((slot) => [slot, energySlot(rawEnergy[slot])])) };
   const rawNet = raw.net && typeof raw.net === 'object' ? raw.net : {};
   const net = { unifi: rawNet.unifi !== false, zigbee: rawNet.zigbee !== false };
 
@@ -149,7 +159,7 @@ export function normalizeConfig(raw, d) {
     };
   }
 
-  return { version: CONFIG_VERSION, floors, rooms, cards, ev, net, music };
+  return { version: CONFIG_VERSION, floors, rooms, cards, ev, energy, net, music };
 }
 
 /** Parse exported or stored text. Returns null when it is not a configuration at all. */
@@ -297,6 +307,12 @@ export const edit = {
   },
   resetCards(cfg, d) {
     cfg.cards = defaultConfig(d).cards;
+    return true;
+  },
+  /** 'auto', '' (nothing) or an entity id. */
+  setEnergyEntity(cfg, slot, value) {
+    if (!ENERGY_SLOTS.includes(slot)) return false;
+    cfg.energy.map[slot] = value === 'auto' ? 'auto' : (isId(value) ? value : null);
     return true;
   },
   setEvEntity(cfg, slot, entityId) {

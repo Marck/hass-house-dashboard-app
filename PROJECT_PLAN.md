@@ -785,14 +785,14 @@ Reconciled 2026-11-23 against the code, the merged pull requests and a read-only
 |---|---|---|
 | Phase 0: Preparation | Approved | Stack, repository and privacy baseline in place 2026-11-15 |
 | Phase 1: Design/mockup | Approved | The owner moved on to Phase 2 on 2026-11-15. Two acceptance items stay open: fidelity to the references (owner's judgement) and touch on a real device |
-| Phase 2: Local application | In progress | Approved 2026-11-17. Of 11 milestones (steps 1 to 10 and 6b), 7 are implemented (1 to 6 and 6b), none is verified on a device; 7 to 9 not started; 10 blocked |
+| Phase 2: Local application | In progress | Approved 2026-11-17. Of 11 milestones (steps 1 to 10 and 6b), 8 are implemented (1 to 7 and 6b), none is verified on a device; 8 and 9 not started; 10 blocked |
 | Phase 3: Cluster deployment | Early preview only | The preview runs in the cluster in live, read-only mode since 2026-11-18. Everything else in Phase 3 is not started and needs its own approval |
 | Privacy baseline | Verified | `scripts/privacy-check.mjs` in every verify; history, CI logs and every published image checked 2026-11-23 (`docs/security-and-privacy.md`) |
 | Target-device testing | Not started | Only "the preview opens on the iPad Air 2 after login" (2026-11-16, reported). The checklist in `docs/device-testing.md` has not been run on any device |
 
 ### Phase 2 milestone tracker
 
-The preview runs the image built from `main` at the review fixes (2026-11-23). Work merged after that is not in the preview yet.
+The preview runs release v0.1.0 (2026-11-24). Work merged after that is not in the preview yet.
 
 | Milestone | Implemented | Tested | Verified in the preview | Verified on a device |
 |---|---|---|---|---|
@@ -803,9 +803,9 @@ The preview runs the image built from `main` at the review fixes (2026-11-23). W
 | 5. Configuration in the backend | Yes | Yes, including the sync between devices | Reported: browser checks against the real backend | Not tested |
 | 6. Live states, backend | Yes | Yes, including the credential attribute filter | Partly: connected; the states it serves were not inspected | n/a |
 | 6b. Live states, frontend | Yes | Yes | No: checked against the fake Home Assistant only | Not tested |
-| Theme from the sun state | Yes | Yes | No: not in the preview yet | Not tested |
-| Registry changes at once | Yes | Yes | No: not in the preview yet | n/a |
-| 7. Energy and climate, read-only | No | No | No | No |
+| Theme from the sun state | Yes | Yes | Not checked yet (in v0.1.0) | Not tested |
+| Registry changes at once | Yes | Yes | Partly: the real instance accepts the subscriptions (no refusal in the log, 2026-11-24) | n/a |
+| 7. Energy and climate, read-only, with gas and water | Yes, once merged | Yes | No: not in the preview yet | Not tested |
 | 8. Network sources | No | No | No | No |
 | 9. Music, read-only | No | No | No | No |
 | 10. Commands | No: blocked, needs its own approval | | | |

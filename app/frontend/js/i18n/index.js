@@ -30,6 +30,7 @@ export function createI18n(lang) {
   const locale = LOCALES[lang];
   const formats = {};
   const num = (value, digits = 0) => {
+    if (typeof value !== 'number' || !Number.isFinite(value)) return '-'; // unknown, never NaN or Infinity
     if (!formats[digits]) {
       formats[digits] = new Intl.NumberFormat(locale, { minimumFractionDigits: digits, maximumFractionDigits: digits });
     }

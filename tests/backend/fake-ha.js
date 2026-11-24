@@ -67,6 +67,7 @@ export async function startFakeHa({ token = TOKEN, data = DATA, states = STATES 
   const subscribers = new Set(); // { say, id }
   const watchers = new Set(); // { say, id, eventType }
   const eventTypes = [];
+  const sent = []; // full messages of commands answered by a function, to check their parameters
   const server = createServer((req, res) => { res.writeHead(404); res.end(); });
   server.on('upgrade', (req, socket) => {
     if (req.url !== '/api/websocket') return socket.destroy();
@@ -102,6 +103,12 @@ export async function startFakeHa({ token = TOKEN, data = DATA, states = STATES 
           watchers.add(w);
           socket.on('close', () => watchers.delete(w));
         }
+        else if (typeof data[msg.type] === 'function') {
+          sent.push(msg);
+          const result = data[msg.type](msg);
+          if (result instanceof Error) say({ id: msg.id, type: 'result', success: false, error: { code: result.message, message: result.message } });
+          else say({ id: msg.id, type: 'result', success: true, result });
+        }
         else if (data[msg.type]) say({ id: msg.id, type: 'result', success: true, result: data[msg.type] });
         else say({ id: msg.id, type: 'result', success: false, error: { code: 'unknown_command', message: 'Unknown command.' } });
       }
@@ -118,6 +125,7 @@ export async function startFakeHa({ token = TOKEN, data = DATA, states = STATES 
     received,
     /** Sends a state message ({ a, c, r }) to every subscriber. */
     pushStates: (event) => { for (const sub of subscribers) sub.say({ id: sub.id, type: 'event', event }); },
+    sent,
     /** The event types the client subscribed to. */
     eventTypes,
     /** Fires a registry event (e.g. area_registry_updated) to whoever subscribed to it. */

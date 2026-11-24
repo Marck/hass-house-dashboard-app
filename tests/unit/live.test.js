@@ -133,3 +133,47 @@ test('live: the theme menu shows the sun from Home Assistant and offers no demo 
   assert.doesNotMatch(html, /data-action="sun"/);
   assert.match(render({ state: { menu: 'theme' } }), /data-action="sun"/);
 });
+
+// Every way Home Assistant says "no value": its two states, values a broken
+// integration can send, and attributes that are missing, null or of the wrong type.
+const ODD = ['unavailable', 'unknown', '', ' ', 'None', 'none', 'null', 'nan', 'NaN', 'inf', '-inf', 'Infinity', '1e999', 'abc', '0x10'];
+const ODD_ATTRS = [{}, null, { current_temperature: null, temperature: null }, { current_temperature: 'x', temperature: '21', hvac_modes: 'heat', min_temp: null },
+  { hvac_action: 'defrosting' }, { hvac_action: 'preheating' }, { hvac_action: 'drying' }, { hvac_action: 'fan' }, { hvac_action: 'off' }, { hvac_action: 'something_new' },
+  { target_temp_low: null, target_temp_high: 24 }, { volume_level: 'loud', supported_features: 'x', media_title: null }, { device_class: 'door' }];
+
+test('no state or attribute Home Assistant can send breaks a screen or shows as 0, NaN or Infinity', () => {
+  const s0 = { theme: { mode: 'auto', manual: 'light' }, sun: 'above', netWidth: 1000, view: 'home', room: null, roomCfg: false, settings: false, floor: 'ground',
+    netTab: 'network', netView: 'all', site: 'site_01', device: null, evPeriod: 'day', menu: null, edit: false, planEdit: false, confirm: null, locked: false,
+    pinPad: false, pinEntry: '', diag: null, grouping: false, musicSel: null, musicPick: [], onboard: null, lock: defaultLock(), access: defaultAccess() };
+  const ids = Object.keys(STATES);
+  for (const value of ODD) {
+    for (const attrs of ODD_ATTRS) {
+      const states = Object.fromEntries(ids.map((id) => [id, { s: value, a: attrs, lc: NOW }]));
+      const d = createFixture();
+      buildLive(d, REGISTRY, states);
+      applyStates(d, states, NOW);
+      const cfg = defaultConfig(d);
+      applyConfig(d, cfg);
+      assert.equal(d.rooms.living.temp, undefined, `a temperature of "${value}" is no temperature`);
+      for (const view of ['home', 'energy']) {
+        for (const [i, extra] of [{}, { room: 'living' }, { room: 'bed' }].entries()) {
+          const layout = LAYOUTS[(i + ODD.indexOf(value)) % LAYOUTS.length];
+          const lang = (ODD.indexOf(value) + i) % 2 ? 'nl' : 'en';
+          const html = appView(context({ ...s0, view, layout, lang, ...extra }, d, createI18n(lang), cfg)).replace(/<[^>]+>/g, ' ');
+          const bad = html.match(/.{0,60}(NaN|undefined|Infinity|\bnull\b).{0,20}/);
+          assert.ok(!bad, `"${value}" ${JSON.stringify(attrs)} ${view} ${JSON.stringify(extra)}: ${bad && bad[0].replace(/\s+/g, ' ')}`);
+        }
+      }
+    }
+  }
+});
+
+test('the states of a whole house going unavailable (a restart) and coming back', () => {
+  const { d } = live();
+  const down = Object.fromEntries(Object.keys(STATES).map((id) => [id, { s: 'unavailable', a: { restored: true }, lc: NOW }]));
+  applyStates(d, down, NOW);
+  assert.equal(d.lights['light.one'].reachable, false);
+  assert.equal(d.lights['light.one'].on, false);
+  applyStates(d, JSON.parse(JSON.stringify(STATES)), NOW);
+  assert.equal(d.lights['light.one'].on, true);
+});

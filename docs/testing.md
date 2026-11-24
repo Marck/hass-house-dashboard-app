@@ -120,3 +120,12 @@ Theme facts:
 - Manual choice: stored on the device; not yet checked on a device after a reload or a Safari restart.
 - Automatic follows the sun state, as the plan defines it (2.5), not the system's light or dark setting. In live mode it follows Home Assistant's sun entity; anything but up or down keeps the light theme. Checked in a browser against the fake Home Assistant (dark while down, light after it rises, 2026-11-23); not on a device.
 - The live frontend was not compared screen by screen with the mock design in the dark theme.
+
+## Energy and climate (step 7), 2026-11-24
+
+Mocked: Energy settings in both grid shapes and every battery power form, statistic ids outside the entity id format dropped, fixed parameters on every statistics read, a read whose parameters try to replace its type refused, a house without a battery, unknown parts that make totals unknown instead of 0, unit conversion (kW to W, unknown units not guessed), the screen in both languages and every layout with and without data (`energy.test.js`, `energy-live.test.js`).
+
+Browser, against the fake Home Assistant: totals, balance, top consumers, gas and water shown; a power sensor chosen in the settings appears at once and after a reload; light and dark readable; no page errors. Not yet checked against the real instance or on a device.
+
+Unavailable and odd states (2026-11-24): every entity kind gets each of Home Assistant's no-value states (`unavailable`, `unknown`) and values a broken integration can send (empty, `None`, `nan`, `inf`, `1e999`, `0x10`, text), with attributes missing, null or of the wrong type, every `hvac_action` and unknown media player states. No screen breaks, nothing reads as 0, NaN or Infinity (`live.test.js`, `energy-live.test.js`). A number that is not finite is printed as "-" everywhere.
+

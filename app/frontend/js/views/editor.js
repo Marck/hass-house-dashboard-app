@@ -3,7 +3,7 @@
 import { esc } from '../util.js';
 import { icon } from '../icons.js';
 import { roomEntities, evStats, netModel, netStats } from '../model.js';
-import { EV_SLOTS, EV_ACCEPTS, NET_SOURCES, hiddenCards, netSources } from '../config.js';
+import { EV_SLOTS, EV_ACCEPTS, ENERGY_SLOTS, ENERGY_ACCEPTS, NET_SOURCES, hiddenCards, netSources } from '../config.js';
 import { LOCK_SCOPES, LOCK_METHODS, LOCK_IDLE_MINUTES, PIN_LENGTH } from '../lock.js';
 import { BUILD } from '../build-info.js';
 import { act, toggle, seg, select, eyebrow, sheet, textInput, roomNameRaw, floorName, floorNameRaw, showId, canEditConfig } from './parts.js';
@@ -190,6 +190,23 @@ export function settingsSheet(c) {
   }).join('');
 
   const sources = netSources(cfg);
+  // Live power on the energy screen: the Energy settings' sensor (auto), none, or one picked here.
+  const sensors = d.energySensors || {};
+  const energyRows = ENERGY_SLOTS.map((slot) => {
+    const name = tx(`energy.slot.${slot}`);
+    const chosen = cfg.energy.map[slot];
+    const fits = Object.keys(sensors).filter((id) => ENERGY_ACCEPTS[slot].includes(sensors[id].cls));
+    const options = [
+      { value: 'auto', label: t('settings.energy.auto'), selected: chosen === 'auto' },
+      { value: '', label: t('settings.none'), selected: chosen === null },
+    ].concat(fits.map((id) => ({ value: id, label: `${esc(sensors[id].name)} (${showId(id)})`, selected: id === chosen })));
+    if (chosen && chosen !== 'auto' && !fits.includes(chosen)) options.push({ value: chosen, label: `${showId(chosen)} (${t('entity.notFound')})`, selected: true });
+    const missing = chosen && chosen !== 'auto' && !fits.includes(chosen);
+    return `<li class="tile ed-row ed-wrap${missing ? ' is-missing' : ''}"><span class="ic-box">${icon(slot.startsWith('batt') ? 'battery' : (slot === 'solar' ? 'sun' : 'bolt'))}</span>
+      <span class="ed-name"><b>${esc(name)}</b><small>${t(chosen === 'auto' ? 'settings.energy.autoHelp' : (chosen === null ? 'settings.energy.off' : 'settings.energy.picked'))}</small></span>
+      ${select({ label: t('settings.ev.entityFor', { name }), input: 'energy-map', arg: slot, options })}</li>`;
+  }).join('');
+
   const sourceRows = NET_SOURCES.map((src) => {
     const on = cfg.net[src];
     const stats = on ? netStats(netModel(d, { net: { unifi: src === 'unifi', zigbee: src === 'zigbee' } }, src, s.site)) : null;
@@ -214,6 +231,7 @@ export function settingsSheet(c) {
       <div class="tile ed-row"><span class="ic-box">${icon('car')}</span><span class="ed-name"><b>${t('settings.ev.show')}</b><small>${t('settings.ev.showHelp')}</small></span>
         ${toggle({ on: evOn, label: t('settings.ev.show'), action: 'card-toggle', arg: 'ev' })}</div>
       <p class="muted ed-gap">${t('settings.ev.hint')}</p><ul class="ed-list">${slots}</ul></section>
+    <section>${eyebrow(t('settings.energy'))}<p class="muted">${t('settings.energy.hint')}</p><ul class="ed-list">${energyRows}</ul></section>
     <section>${eyebrow(t('settings.net'))}<p class="muted">${t('settings.net.hint')}</p><ul class="ed-list">${sourceRows}</ul>
       ${sources.length ? '' : `<p class="menu-note is-warn">${t('settings.net.hidden')}</p>`}</section>
     ${musicSettings(c)}

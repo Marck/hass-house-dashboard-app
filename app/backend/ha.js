@@ -24,8 +24,15 @@ export const LISTS = Object.freeze([
  */
 export const REGISTRY_EVENTS = Object.freeze(['floor_registry_updated', 'area_registry_updated', 'device_registry_updated', 'entity_registry_updated']);
 
+/**
+ * Energy reads (step 7). None needs an admin user (Home Assistant 2026.11.1:
+ * no require_admin on these handlers). Their parameters are built by
+ * energy.js from Home Assistant's own Energy settings, never from a request.
+ */
+export const ENERGY_READ = Object.freeze(['energy/get_prefs', 'energy/solar_forecast', 'recorder/statistic_during_period']);
+
 /** Every command this connection may send. Nothing here can change anything. */
-export const READ = Object.freeze([...LISTS, 'subscribe_entities', 'subscribe_events']);
+export const READ = Object.freeze([...LISTS, 'subscribe_entities', 'subscribe_events', ...ENERGY_READ]);
 
 // Attributes that can carry a credential never leave the backend: a camera's or
 // media player's entity_picture, and a media player's entity_picture_local, hold
@@ -133,8 +140,8 @@ export function createHa({ url, token, WebSocketImpl = globalThis.WebSocket, log
     ws.send(JSON.stringify(message));
   }
 
-  /** A read command. Anything not in READ is refused before it is sent. */
-  function command(type) {
+  /** A read command. Anything not in READ is refused before it is sent. `params` cannot replace the id or the type. */
+  function command(type, params = {}) {
     if (!READ.includes(type)) return Promise.reject(new Error(`refused: ${type} is not a read command`));
     if (state !== 'connected') return Promise.reject(new Error('not connected'));
     const id = nextId++;
@@ -145,7 +152,7 @@ export function createHa({ url, token, WebSocketImpl = globalThis.WebSocket, log
         drop('timeout');
       }, COMMAND_MS);
       waiting.set(id, { done, fail, timer });
-      send({ id, type });
+      send({ ...params, id, type });
     });
   }
 
