@@ -17,6 +17,7 @@ import {
 import { createConfigSync } from './sync.js';
 import { buildLive, applyStates, removeStates, sunFrom } from './live.js';
 import { buildEnergy, energySensors } from './energy-live.js';
+import { buildNetworkLive } from './network-live.js';
 import { pullCloses, pullOffset, PULL_START_PX } from './pull.js';
 
 const PREFS_KEY = 'hhd.prefs';
@@ -1062,7 +1063,7 @@ root.addEventListener('click', (event) => {
 // The dashboard waits for the first states before it shows anything, so demo
 // data never appears as if it were the house, and a saved configuration is
 // read against the real areas.
-const liveState = { on: false, ready: false, registry: null, source: null, timer: 0, retry: 0, states: {}, energy: null };
+const liveState = { on: false, ready: false, registry: null, source: null, timer: 0, retry: 0, states: {}, energy: null, network: null };
 const readOnly = (name) => liveState.on && ['light', 'control'].includes(actionKind(name));
 
 function liveMessage(key) {
@@ -1089,12 +1090,25 @@ function loadEnergy() {
     .catch(() => {});
 }
 
+/** The network map (network-live.js), every minute: devices come and go slowly. */
+function loadNetwork() {
+  window.fetch('/api/ha/network', { credentials: 'same-origin', cache: 'no-store' })
+    .then((res) => (res.ok ? res.json() : null))
+    .then((net) => {
+      if (!net) return;
+      liveState.network = net;
+      if (liveState.ready) liveSchedule();
+    })
+    .catch(() => {});
+}
+
 function liveRefresh() {
   liveState.timer = 0;
   const at = new Date();
   d.now = { h: at.getHours(), m: at.getMinutes() };
   applyConfig(d, cfg);
   liveEnergy();
+  if (liveState.network) d.network = buildNetworkLive(liveState.network);
   route();
   render();
 }
@@ -1197,6 +1211,8 @@ window.fetch('/api/info', { credentials: 'same-origin', cache: 'no-store' })
     liveState.on = true;
     loadEnergy();
     setInterval(loadEnergy, 5 * 60_000);
+    loadNetwork();
+    setInterval(loadNetwork, 60_000);
     s.sunLive = true;
     s.sun = 'unavailable'; // light until Home Assistant says the sun is down
     liveMessage('live.loading');

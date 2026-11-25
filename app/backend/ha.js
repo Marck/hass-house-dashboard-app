@@ -8,6 +8,7 @@
 // in READ.
 // Neither the token nor the Home Assistant address is logged or returned.
 import { readFileSync } from 'node:fs';
+import { buildNetwork, keepNetworkRegistry } from './network.js';
 
 /** The registry lists, loaded on every connect and every 15 minutes. */
 export const LISTS = Object.freeze([
@@ -153,6 +154,7 @@ export function createHa({ url, token, WebSocketImpl = globalThis.WebSocket, log
   let version = null;
   let since = null;
   let registry = null;
+  let netRegistry = null; // UniFi and ZHA entries for the network map, never sent as they are
   const states = new Map(); // entity id -> compressed state as Home Assistant sent it
   const listeners = new Set();
   let subId = null;
@@ -199,6 +201,7 @@ export function createHa({ url, token, WebSocketImpl = globalThis.WebSocket, log
     try {
       const [floors, areas, devices, entities] = await Promise.all(LISTS.map(command));
       registry = shapeRegistry({ floors, areas, devices, entities });
+      netRegistry = keepNetworkRegistry({ devices, entities });
       loadedAt = now();
       return true;
     } catch (error) {
@@ -275,6 +278,7 @@ export function createHa({ url, token, WebSocketImpl = globalThis.WebSocket, log
       const next = { ...old, a: { ...(old.a || {}), ...(add.a || {}) } };
       if ('s' in add) next.s = add.s;
       if ('lc' in add) next.lc = add.lc;
+      if ('lu' in add) next.lu = add.lu;
       for (const key of (diff['-'] && diff['-'].a) || []) delete next.a[key];
       states.set(id, next);
       set.push(id);
@@ -419,6 +423,8 @@ export function createHa({ url, token, WebSocketImpl = globalThis.WebSocket, log
     registry: () => registry,
     /** Every state, without credentials or context. */
     states: () => (state === 'connected' && !fresh ? snapshot() : null),
+    /** The UniFi and Zigbee map (network.js): opaque ids, no addresses. */
+    network: () => (state === 'connected' && !fresh && netRegistry ? buildNetwork(netRegistry, states, now()) : null),
     /** fn({ reset, set, remove }) after each batch; returns a function that stops it. */
     onChange(fn) {
       listeners.add(fn);

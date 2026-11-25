@@ -151,6 +151,11 @@ export function createHandler({ mode, root, auth = null, ha = null, energy = nul
       return send(res, 200, TYPES['.json'], JSON.stringify(all), { 'Cache-Control': 'no-store' });
     }
     if (ha && pathname === '/api/ha/stream') return stream(req, res, ha, () => !auth || Boolean(auth.session(req)));
+    if (ha && pathname === '/api/ha/network') {
+      const network = ha.network();
+      if (!network) return send(res, 503, TYPES['.json'], '{"error":"not loaded"}', { 'Cache-Control': 'no-store' });
+      return send(res, 200, TYPES['.json'], JSON.stringify(network), { 'Cache-Control': 'no-store' });
+    }
     if (ha && pathname === '/api/ha/registry') {
       const registry = ha.registry();
       if (!registry) return send(res, 503, TYPES['.json'], '{"error":"not loaded"}', { 'Cache-Control': 'no-store' });

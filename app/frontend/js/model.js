@@ -122,9 +122,13 @@ const withSource = (list, src) => list.map((item) => ({ ...item, src }));
  * sources. The Zigbee coordinator is also a UniFi client; Home Assistant knows
  * it as one device, so it appears once, as the root of the Zigbee devices.
  */
+/** The configured sources Home Assistant has; in the demo, every configured one. */
+export const netPresent = (d, cfg) => netSources(cfg).filter((src) => !d.network.present || d.network.present[src]);
+
 export function netModel(d, cfg, view, siteId) {
-  const sources = netSources(cfg);
-  const site = d.network.bySite[siteId];
+  const sources = netPresent(d, cfg);
+  const site = d.network.bySite[siteId] || Object.values(d.network.bySite)[0];
+  if (!sources.length) return { view, sources: [], wan: null, nodes: [], devices: [], active: [] };
   const zb = d.network.zigbee;
   const only = sources.length === 1 ? sources[0] : null;
   const kind = view === 'all' && only ? only : view;

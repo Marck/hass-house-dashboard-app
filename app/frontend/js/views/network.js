@@ -1,8 +1,8 @@
 // Screen B: network overview with All, UniFi and Zigbee views, and uplink diagnostics.
 // Both sources are optional; Home Assistant is the integration layer for each.
 import { icon } from '../icons.js';
-import { netModel, netStats } from '../model.js';
-import { netViews } from '../config.js';
+import { netModel, netPresent, netStats } from '../model.js';
+import { netSources, netViews } from '../config.js';
 import { layoutNetwork } from '../art/netlayout.js';
 import { pingChart, outageBars, meter } from '../charts.js';
 import { act, seg, cardGrid, showId, demoNote } from './parts.js';
@@ -29,7 +29,7 @@ function deviceCard(c, m, v, style) {
     ${v.tagKey ? `<span class="tag">${t(v.tagKey)}</span>` : ''}${v.online ? '' : '<i class="dot is-off"></i>'}</button>`;
 }
 
-const nodeSub = (c, m, node, count) => `<small>${showId(node.id)}</small><small>${c.t(node.typeKey)} · ${c.t('net.deviceCount', { n: c.f.num(count) })}</small>${mixed(m) ? `<small>${c.t(`net.src.${node.src}`)}</small>` : ''}`;
+const nodeSub = (c, m, node, count) => `<small>${showId(node.id)}</small><small>${c.t(node.typeKey)} · ${c.t('net.deviceCount', { n: c.f.num(count) })}${node.online === false ? ` · ${c.t('net.offline')}` : ''}</small>${mixed(m) ? `<small>${c.t(`net.src.${node.src}`)}</small>` : ''}`;
 
 function netMap(c, m) {
   const { s, t, f } = c;
@@ -40,7 +40,7 @@ function netMap(c, m) {
   let html = '';
   if (m.wan) {
     lines += `<path class="link is-wan" d="M${L.wan.x + 24},${L.wan.y + 30}C${L.wan.x + 110},${L.wan.y + 70} ${main.x - 100},${main.y - 150} ${main.x - 14},${main.y - 40}"/>`;
-    html += `<div class="node is-wan" data-style="${at(L.wan)}"><span class="node-dot">${icon('uplink')}</span><b>${t(m.wan.nameKey)}</b><small>${f.unit(m.wan.ping, 'ms')}</small></div>`;
+    html += `<div class="node is-wan" data-style="${at(L.wan)}"><span class="node-dot">${icon('uplink')}</span><b>${t(m.wan.nameKey)}</b>${Number.isFinite(m.wan.ping) ? `<small>${f.unit(m.wan.ping, 'ms')}</small>` : ''}</div>`;
   }
 
   m.nodes.forEach((node) => {
@@ -95,9 +95,11 @@ function detailPanel(c, m, v) {
     [t('net.detail.node'), t(m.nodes.find((n) => n.id === v.node).nameKey)],
   ];
   if (v.type) rows.push([t('net.detail.type'), t(`zb.type.${v.type}`)]);
+  if (v.modelKey) rows.push([t('net.detail.model'), t(v.modelKey)]);
   if (v.lqi !== undefined && v.online) rows.push([t('net.detail.lqi'), f.num(v.lqi)]);
   if (v.battery !== undefined) rows.push([t('net.detail.battery'), f.pct(v.battery)]);
-  if (v.src === 'unifi') rows.push([t('net.detail.traffic'), v.online ? rate(c, v) : t('net.none')]);
+  // Live UniFi clients have no traffic in Home Assistant: left out, not shown as quiet.
+  if (v.src === 'unifi' && v.traffic !== false) rows.push([t('net.detail.traffic'), v.online ? rate(c, v) : t('net.none')]);
   return `<div class="tile detail" role="status"><b>${t(v.nameKey)}</b><dl>${rows.map(([k, val]) => `<dt>${k}</dt><dd>${val}</dd>`).join('')}</dl></div>`;
 }
 
@@ -111,7 +113,26 @@ function activePanel(c, m) {
     ${selected ? detailPanel(c, m, selected) : ''}${rows ? `<ul class="active-list">${rows}</ul>` : ''}<p class="muted">${t('net.hint')}</p></aside>`;
 }
 
+/** Live: what Home Assistant has of the gateway, its state, uptime, CPU and memory. No ping, speed or data. */
+function wanLive(c, w) {
+  const { t, f } = c;
+  const up = w.upHours !== undefined ? `<span class="chip is-teal"><i class="dot is-ok"></i>${t('wan.uptime', { h: f.num(w.upHours), m: f.num(w.upMinutes) })}</span>` : '';
+  const tile = (value, label) => (value === undefined ? '' : `<div class="tile"><b>${f.pct(value)}</b><small>${label}</small></div>`);
+  const load = tile(w.cpu, t('wan.cpu')) + tile(w.memory, t('wan.memory'));
+  const sp = w.speed;
+  const rateTile = (v, arrow) => (v === undefined ? '' : `<div class="tile"><b>${arrow} ${f.num(v, v < 10 ? 1 : 0)}</b><small>${t('wan.mbit')}</small></div>`);
+  const when = !sp || !sp.at ? '' : sp.at === 'old' ? t('wan.speedOld') : t('wan.speedAt', { time: f.time(sp.at.getHours(), sp.at.getMinutes()) });
+  const speed = sp ? `<div class="tile"><div class="eyebrow"><h3>${t('wan.speedtest')}</h3>${when ? `<span>${when}</span>` : ''}</div>
+      <div class="pair">${rateTile(sp.down, '↓')}${rateTile(sp.up, '↑')}${sp.ping === undefined ? '' : `<div class="tile"><b>${f.num(sp.ping)}</b><small>${t('wan.pingUnit')}</small></div>`}</div></div>` : '';
+  return `<section class="card wan">
+    <header class="card-head"><span class="ic-box">${icon('uplink')}</span><h2>${t('wan.gateway')}</h2>${w.healthy ? up : ''}</header>
+    <p><span class="chip"><i class="dot ${w.healthy ? 'is-ok' : 'is-off'}"></i>${t(w.healthy ? 'wan.online' : 'wan.offline')}</span></p>
+    ${load ? `<div class="pair">${load}</div>` : ''}${speed}
+  </section>`;
+}
+
 function wanCard(c, w) {
+  if (w.live) return wanLive(c, w);
   const { t, f } = c;
   const tile = (value, label) => `<div class="tile"><b>${value}</b><small>${label}</small></div>`;
   const days = w.outages.map((_, i) => f.weekday(i));
@@ -169,7 +190,7 @@ function statCards(c, m, st) {
 function mapCard(c, m) {
   const { s, t } = c;
   const lines = m.sources.reduce((all, src) => all.concat(BANDS[src]), []).map((b) => `<li><i class="line band-${b}"></i>${t(`net.band.${b}`)}</li>`).join('');
-  const mesh = m.sources.includes('unifi') ? `<li><i class="line is-mesh"></i>${t('net.link.mesh')}</li>` : '';
+  const mesh = m.nodes.some((n) => n.link === 'mesh') ? `<li><i class="line is-mesh"></i>${t('net.link.mesh')}</li>` : '';
   return `<div class="grid grid-net">
     <section class="card map-card">
       <header class="card-head"><span class="ic-box">${icon('network')}</span><h2>${t('net.map')}</h2></header>
@@ -182,23 +203,29 @@ function mapCard(c, m) {
 
 export function networkView(c) {
   const { s, d, cfg, t, tn, f } = c;
-  const views = netViews(cfg);
+  const present = netPresent(d, cfg);
+  const views = netViews(cfg).filter((v) => v === 'all' || present.includes(v));
   const view = views.includes(s.netView) ? s.netView : 'all';
   const m = netModel(d, cfg, view, s.site);
   const st = netStats(m);
   const avail = d.network.availability;
   const open = avail.items.filter((i) => i.open).length;
-  const tabs = seg(t('net.views'), [
+  // The availability list is demo content; live mode has none, so no tab for it.
+  const tabs = avail.items.length ? seg(t('net.views'), [
     { label: t('nav.network'), on: s.netTab === 'network', attrs: act('net-tab', 'network') },
     { label: t('avail.title'), on: s.netTab === 'availability', attrs: act('net-tab', 'availability'), badge: open ? '<i class="dot is-warn"></i>' : '' },
-  ]);
-  const lead = t(`net.lead.${mixed(m) ? 'all' : m.sources[0]}`, { nodes: f.num(st.nodes), online: f.num(st.online), offline: f.num(st.offline) });
+  ]) : '';
+  const lead = m.sources.length ? t(`net.lead.${mixed(m) ? 'all' : m.sources[0]}`, { nodes: f.num(st.nodes), online: f.num(st.online), offline: f.num(st.offline) }) : t('net.lead.none');
   const head = `<div class="page-head"><div><h1>${t('net.title')}</h1><p class="lead">${lead}</p></div>
     ${tabs}<span class="chip"><i class="dot is-ok"></i>${t('common.live', { time: f.time(d.now.h, d.now.m) })}</span></div>${demoNote(c)}`;
-  if (s.netTab === 'availability') return head + availability(c);
+  if (s.netTab === 'availability' && avail.items.length) return head + availability(c);
+  if (!m.sources.length) {
+    return `${head}<section class="card"><p class="muted">${t(netSources(cfg).length ? 'net.empty' : 'net.noSources')}</p>
+      <button type="button" class="btn" ${act('settings')}>${icon('gear')}<span>${t('net.sources')}</span></button></section>`;
+  }
 
   const banner = open ? `<div class="banner is-warn"><span class="ic-box">${icon('shield')}</span>
-      <p><b>${tn('avail.banner', open)}</b><small>${t('avail.bannerSub', { h: f.num(avail.lastBackupHours) })}</small></p>
+      <p><b>${tn('avail.banner', open)}</b>${Number.isFinite(avail.lastBackupHours) ? `<small>${t('avail.bannerSub', { h: f.num(avail.lastBackupHours) })}</small>` : ''}</p>
       <button type="button" class="btn btn-link" ${act('net-tab', 'availability')}><span>${t('common.view')}</span>${icon('chevron')}</button></div>` : '';
   const sourceViews = seg(t('net.sourceViews'), views.map((v) => ({ label: t(v === 'all' ? 'net.view.all' : `net.src.${v}`), on: v === view, attrs: act('net-view', v) })));
   const sites = m.sources.includes('unifi') && d.network.sites.length > 1
