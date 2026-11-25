@@ -483,6 +483,7 @@ h2 { font-size: 19px; font-weight: 600; }
 .link.is-selected { stroke-width: 3.5; }
 .link.is-trunk { stroke-width: 3.5; stroke-linecap: round; }
 .link.is-trunk.is-wired { stroke: var(--blue); stroke-dasharray: 1 7; }
+.link.is-uplink { stroke: var(--blue); }
 .link.is-mesh { stroke: var(--teal-fill); stroke-dasharray: 12 8; }
 .link.is-wan { stroke: var(--blue); stroke-width: 2.5; stroke-dasharray: 9 5 2 5; }
 .node { position: absolute; display: flex; flex-direction: column; align-items: center; width: 160px; margin: -44px 0 0 -80px; text-align: center; pointer-events: none; }

@@ -4,8 +4,9 @@
 // come from Home Assistant as literal text (lit), not translation keys.
 //
 // Read-only: nothing here sends anything. Parts that are not live yet
-// (energy, network, weather, watering) keep the demo data and the
-// views say so.
+// (weather, watering) keep the demo data and the views say so.
+
+import { emptyNetwork } from './network-live.js';
 
 /** A name that is shown as is, not looked up as a translation key. */
 export const lit = (text) => ({ text: String(text) });
@@ -82,8 +83,10 @@ export function buildLive(d, registry, states) {
     if (!kind || e.hidden || e.category) return;
     d.ha.entities[e.id] = { kind, area: e.area, name: nameOf(e, st) };
   });
-  // Not live yet: no camera event or weather in a real house.
+  // Not live yet: no camera event or weather in a real house. The network
+  // starts empty, not as the demo's, until the backend's map arrives.
   d.live = true;
+  d.network = emptyNetwork();
   d.people = [];
   d.camera = { roomId: null };
   applyStates(d, states);
