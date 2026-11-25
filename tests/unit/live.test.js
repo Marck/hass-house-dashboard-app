@@ -7,7 +7,7 @@ import { applyConfig, homeSummary } from '../../app/frontend/js/model.js';
 import { defaultLock } from '../../app/frontend/js/lock.js';
 import { defaultAccess } from '../../app/frontend/js/onboard.js';
 import { appView, context } from '../../app/frontend/js/views/app.js';
-import { buildLive, applyStates, removeStates, kindOf, sunFrom } from '../../app/frontend/js/live.js';
+import { buildLive, applyStates, removeStates, kindOf, sunFrom, personOf } from '../../app/frontend/js/live.js';
 import { LAYOUTS, render } from './helpers.js';
 import { resolveTheme } from '../../app/frontend/js/theme.js';
 
@@ -47,6 +47,10 @@ const STATES = {
   'sensor.power': { s: '300', a: { device_class: 'power' }, lc: NOW },
   'climate.heat': { s: 'heat', a: { hvac_modes: ['off', 'heat'], current_temperature: 19, temperature: 21, min_temp: 7, max_temp: 30 }, lc: NOW },
   'media_player.spk': { s: 'playing', a: { media_title: `Song ${EVIL}`, volume_level: 0.25, supported_features: 16384 | 4 | 32 }, lc: NOW },
+  'person.b': { s: 'not_home', a: { friendly_name: 'Bo' }, lc: NOW },
+  'person.a': { s: 'home', a: { friendly_name: `Al ${EVIL}` }, lc: NOW },
+  'person.c': { s: `Work ${EVIL}`, a: { friendly_name: 'Cy' }, lc: NOW },
+  'person.d': { s: 'unavailable', a: {}, lc: NOW },
 };
 
 function live() {
@@ -77,7 +81,7 @@ test('floors by level, areas as rooms, areas without a floor on "Other", hidden 
   assert.equal(d.rooms.living.temp, 20.5);
   assert.equal(d.rooms.living.door.open, true);
   assert.equal(d.rooms.bed.motion, 'recent', 'motion a minute ago');
-  assert.deepEqual(d.people, [], 'no made-up people in a real house');
+  assert.ok(d.people.every((p) => p.id.startsWith('person.')), 'no made-up people in a real house');
   assert.ok(!Object.keys(d.lights).some((id) => id.startsWith('light_')), 'no demo lights left');
 });
 
@@ -176,4 +180,21 @@ test('the states of a whole house going unavailable (a restart) and coming back'
   assert.equal(d.lights['light.one'].on, false);
   applyStates(d, JSON.parse(JSON.stringify(STATES)), NOW);
   assert.equal(d.lights['light.one'].on, true);
+});
+
+test('people show their zone only: home, away, another zone or unknown, no battery', () => {
+  const { d, cfg } = live();
+  assert.deepEqual(d.people.map((p) => [p.id, p.state, p.zoneKey && p.zoneKey.text]), [
+    ['person.a', 'home', undefined], ['person.b', 'away', undefined], ['person.c', 'zone', `Work ${EVIL}`], ['person.d', 'unknown', undefined],
+  ]);
+  assert.ok(d.people.every((p) => p.battery === undefined));
+  const html = appView(context({ theme: { mode: 'auto', manual: 'light' }, sun: 'above', layout: 'desktop', view: 'home', floor: 'ground', netTab: 'network', netView: 'all', site: 'site_01', evPeriod: 'day', musicPick: [], lang: 'nl', lock: defaultLock(), access: defaultAccess() }, d, createI18n('nl'), cfg));
+  const people = html.slice(html.indexOf('<ul class="people"'), html.indexOf('</ul>', html.indexOf('<ul class="people"')));
+  for (const word of ['thuis', 'onderweg', 'Work', 'onbekend', 'is-home', 'is-away', 'is-zone', 'is-unknown']) assert.ok(people.includes(word), word);
+  assert.ok(!people.includes('person-batt') && !people.includes('<img'));
+  applyStates(d, { 'person.b': { s: 'Shop', a: { friendly_name: 'Bo' } } });
+  assert.equal(d.people.find((p) => p.id === 'person.b').zoneKey.text, 'Shop');
+  removeStates(d, ['person.a']);
+  assert.deepEqual(['state', 'nameKey'].map((k) => d.people.find((p) => p.id === 'person.a')[k]), ['unknown', { text: `Al ${EVIL}` }], 'a removed person shows as unknown, under their name');
+  assert.equal(personOf('person.x', null).nameKey.text, 'x');
 });

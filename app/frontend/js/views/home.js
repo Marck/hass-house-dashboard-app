@@ -93,9 +93,10 @@ export function homeView(c) {
   if (sum.motionNow.length) lead.push(t('home.motion', { room: roomNameRaw(c, sum.motionNow[sum.motionNow.length - 1]) }));
   if (sum.unreachable) lead.push(tn('home.unreachable', sum.unreachable));
 
+  // A live person shows their zone only; the demo also shows a phone battery.
   const people = d.people.map((p) => `<li class="person"><span class="avatar">${icon('user')}<i class="dot is-${p.state}"></i></span>
-    <span class="person-main"><b>${t(p.nameKey)}</b><small>${t(`person.state.${p.state}`)}</small></span>
-    <span class="person-batt" aria-label="${t('person.battery', { pct: f.pct(p.battery) })}">${f.pct(p.battery)}</span></li>`).join('');
+    <span class="person-main"><b>${t(p.nameKey)}</b><small>${p.zoneKey ? t(p.zoneKey) : t(`person.state.${p.state}`)}</small></span>
+    ${Number.isFinite(p.battery) ? `<span class="person-batt" aria-label="${t('person.battery', { pct: f.pct(p.battery) })}">${f.pct(p.battery)}</span>` : ''}</li>`).join('');
 
   const openId = sum.doorsOpen[0];
   const doorGlyphs = sum.doors.map((id) => `<i class="door-glyph${d.rooms[id].door.open ? ' is-open' : ''}"></i>`).join('');

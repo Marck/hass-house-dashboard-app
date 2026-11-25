@@ -66,6 +66,7 @@ export default {
   'person.b': 'Resident 2',
   'person.state.away': 'away',
   'person.state.home': 'home',
+  'person.state.unknown': 'unknown',
   'person.battery': 'Phone battery {pct}',
   'guard.label': 'Guard',
   'guard.nobody': 'nobody home',

@@ -88,6 +88,9 @@ h2 { font-size: 19px; font-weight: 600; }
 .dot.is-off { background: var(--red-fill); border-radius: 2px; }
 .dot.is-blue { background: var(--blue-fill); }
 .dot.is-muted { background: var(--line-strong); }
+.dot.is-home { background: var(--teal-fill); }
+.dot.is-zone { background: var(--blue-fill); }
+.dot.is-unknown { background: var(--line-strong); }
 
 .btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 44px; padding: 8px 18px; border-radius: var(--r-pill); background: var(--tile); box-shadow: var(--shadow-sm); font-weight: 600; white-space: nowrap; }
 .btn.is-on { background: var(--teal-soft); color: var(--teal); box-shadow: 0 0 0 1.5px var(--teal-fill); }
