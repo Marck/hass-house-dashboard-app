@@ -66,6 +66,7 @@ export default {
   'person.b': 'Bewoner 2',
   'person.state.away': 'onderweg',
   'person.state.home': 'thuis',
+  'person.state.unknown': 'onbekend',
   'person.battery': 'Telefoonbatterij {pct}',
   'guard.label': 'Bewaking',
   'guard.nobody': 'niemand thuis',

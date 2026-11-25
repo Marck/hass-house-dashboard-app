@@ -16,7 +16,7 @@ const createHa = (options) => {
 };
 import { createHandler, settings } from '../../app/backend/app.js';
 import { startFakeHa, TOKEN, DATA } from './fake-ha.js';
-import { cleanState } from '../../app/backend/ha.js';
+import { cleanState, isAddress } from '../../app/backend/ha.js';
 
 // Backoff and timeouts run 100 times faster here.
 const fast = {
@@ -201,6 +201,56 @@ test('after a reconnect the browser gets every state again', async () => {
 test('cleanState keeps ordinary attributes and drops anything that looks like a credential', () => {
   const st = cleanState({ s: 'playing', a: { volume_level: 0.4, entity_picture: '/x?token=y', entity_picture_local: '/p?token=y', api_token: 'z', Password: 'p' }, c: 'ctx', lu: 9 });
   assert.deepEqual(st, { s: 'playing', a: { volume_level: 0.4 }, lc: 9 });
+});
+
+// Documentation addresses (RFC 5737, RFC 3849, RFC 7042). The MAC is built at
+// run time so the privacy check does not flag this file.
+const MAC = ['00', '00', '5e', '00', '53', '01'].join(':');
+const IP4 = '192.0.2.1';
+const IP6 = '2001:db8::1';
+
+test('isAddress knows MAC, IPv4 and IPv6 addresses and nothing else', () => {
+  for (const v of [MAC, MAC.toUpperCase(), MAC.replaceAll(':', '-'), IP4, `${IP4}/24`, IP6, '::1', 'fe80::1%eth0', ` ${IP4} `]) assert.ok(isAddress(v), v);
+  for (const v of ['12:00:00', '2026.11.1', '21.5', '2026-11-25', 'on', '', null, 7, 'abc::xyz', 'dead:beef']) assert.ok(!isAddress(v), String(v));
+});
+
+test('cleanState drops network identifiers and coordinates, and states that are an address', () => {
+  const tracker = cleanState({
+    s: 'home',
+    a: { friendly_name: 'Phone', source_type: 'router', ip: IP4, mac: MAC, host_name: 'h', oui: 'o', ap_mac: MAC, essid: 'w', note: 'n', latitude: 1, longitude: 2, altitude: 3, gps_accuracy: 4, vertical_accuracy: 5, in_zones: ['zone.home'] },
+    lc: 1,
+  });
+  assert.deepEqual(tracker.a, { friendly_name: 'Phone', source_type: 'router' });
+  assert.deepEqual(cleanState({ s: 'heat', a: { temperature: 20, MAC_Address: 'x', uplink: MAC, gateway: IP6 } }).a, { temperature: 20 });
+  for (const s of [MAC, IP4, IP6]) assert.equal(cleanState({ s, a: {} }), null);
+  assert.deepEqual(cleanState({ s: 'x', a: { message: 'm', location: 'street 1' } }).a, { message: 'm' }, 'a calendar event loses its location');
+});
+
+test('people, trackers and zones keep their name only; location and Wi-Fi name sensors are not sent', () => {
+  const person = cleanState({ s: 'Work', a: { friendly_name: 'P', user_id: 'u', id: 'i', source: 'device_tracker.t', device_trackers: ['device_tracker.t'], editable: true, latitude: 1, longitude: 2, entity_picture: '/p' } }, 'person.p');
+  assert.deepEqual(person, { s: 'Work', a: { friendly_name: 'P' }, lc: null });
+  assert.deepEqual(cleanState({ s: 'home', a: { friendly_name: 'T', source_type: 'gps', battery_level: 50, course: 1 } }, 'device_tracker.t').a, { friendly_name: 'T', source_type: 'gps' });
+  assert.deepEqual(cleanState({ s: '1', a: { friendly_name: 'Home', icon: 'mdi:home', radius: 100, persons: ['person.p'], latitude: 1 } }, 'zone.home').a, { friendly_name: 'Home', icon: 'mdi:home' });
+  assert.equal(cleanState({ s: 'Street 1, Town', a: { Location: [1, 2], Thoroughfare: 't' } }, 'sensor.renamed'), null, 'geocoded, by its attributes');
+  for (const id of ['sensor.phone_geocoded_location', 'sensor.phone_ssid', 'sensor.phone_bssid']) assert.equal(cleanState({ s: 'x', a: {} }, id), null, id);
+  assert.ok(cleanState({ s: '-60', a: {} }, 'sensor.meter_wifi_strength'), 'a signal strength is not a network name');
+});
+
+test('the stream never sends an address, and a state that becomes one is removed', async () => {
+  const ha = createHa({ url: fake.url, token: () => TOKEN, log: quiet().log, timers: fast });
+  const changes = [];
+  ha.onChange((c) => changes.push(c));
+  ha.start();
+  await until(() => ha.states());
+  fake.pushStates({ a: { 'sensor.uplink_one': { s: MAC, a: {}, lc: 7 }, 'device_tracker.phone_one': { s: 'home', a: { ip: IP4, latitude: 1 }, lc: 7 }, 'switch.addr_one': { s: 'on', a: {}, lc: 7 } } });
+  await until(() => changes.some((c) => c.set && 'device_tracker.phone_one' in c.set));
+  fake.pushStates({ c: { 'switch.addr_one': { '+': { s: IP6 } } } });
+  await until(() => changes.some((c) => c.remove && c.remove.includes('switch.addr_one')));
+  const now = ha.states();
+  const all = JSON.stringify([now, changes]);
+  ha.stop();
+  for (const v of [MAC, IP4, IP6, 'latitude']) assert.ok(!all.includes(v), v);
+  assert.ok(!('sensor.uplink_one' in now) && !('switch.addr_one' in now));
 });
 
 test('/api/ha/stream sends every state, then the changes', async () => {

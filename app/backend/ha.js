@@ -38,19 +38,58 @@ export const READ = Object.freeze([...LISTS, 'subscribe_entities', 'subscribe_ev
 // media player's entity_picture, and a media player's entity_picture_local, hold
 // an access token in their URL.
 const SECRET_ATTR = /^entity_picture|token|password|secret/i;
+// Attributes that identify the network or where someone is: a network
+// tracker's addresses, host name, vendor prefix, access point and Wi-Fi name,
+// and the coordinates of people, phones and zones. The dashboard uses none.
+// A calendar event's location is an address too.
+const PRIVATE_ATTR = new Set([
+  'ip', 'ip_address', 'mac', 'mac_address', 'host_name', 'hostname', 'oui', 'ap_mac', 'bssid', 'essid', 'ssid', 'note',
+  'latitude', 'longitude', 'altitude', 'gps_accuracy', 'vertical_accuracy', 'in_zones', 'location', 'course', 'speed',
+]);
+// People, their trackers and zones send their name only: a person's state is
+// the zone they are in (home, not_home or a zone's name), never where in it.
+// Their account id, tracker ids and a zone's radius stay here.
+const ONLY_ATTR = { person: ['friendly_name'], device_tracker: ['friendly_name', 'source_type'], zone: ['friendly_name', 'icon'] };
+// Entities that are a location or a network name whatever their state: a
+// phone's geocoded location (its state is a street address) and its Wi-Fi name.
+const PRIVATE_ID = /^sensor\..*_(geocoded_location|b?ssid)$/;
+const GEOCODED_ATTR = ['Location', 'Thoroughfare', 'Postal Code', 'ISO Country Code'];
+// A value that is a MAC or IP address, whatever it is called (an access point's
+// uplink sensor, a thermostat's mac attribute).
+const MAC = /^([0-9a-f]{2}[:-]){5}[0-9a-f]{2}$/i;
+const IPV4 = /^\d{1,3}(\.\d{1,3}){3}(\/\d{1,2})?$/;
+const IPV6 = /^(?=[0-9a-f:]*::|([0-9a-f]{1,4}:){7})[0-9a-f:]{2,39}(%\w+)?(\/\d{1,3})?$/i;
+/** True for a string that is a MAC, IPv4 or IPv6 address. */
+export const isAddress = (v) => typeof v === 'string' && (MAC.test(v.trim()) || IPV4.test(v.trim()) || IPV6.test(v.trim()));
 const BATCH_MS = 500;
 // A rename touches several entries; one reload after the burst is enough.
 const REGISTRY_SETTLE_MS = 2000;
 
 /**
  * One state as the browser gets it: the state, its attributes without
- * credentials, and when it last changed. Home Assistant's context (which user
- * did it) is dropped.
+ * credentials, network identifiers or coordinates, and when it last changed.
+ * Home Assistant's context (which user did it) is dropped. An entity that is
+ * an address or a location (see PRIVATE_ID) is not sent at all: null.
  */
-export function cleanState(compressed) {
+export function cleanState(compressed, id = '') {
+  const raw = (compressed && compressed.a) || {};
+  if (isAddress(compressed && compressed.s) || PRIVATE_ID.test(id) || GEOCODED_ATTR.some((k) => k in raw)) return null;
+  const only = ONLY_ATTR[id.split('.')[0]];
   const attributes = {};
-  for (const [key, value] of Object.entries((compressed && compressed.a) || {})) if (!SECRET_ATTR.test(key)) attributes[key] = value;
+  for (const [key, value] of Object.entries(raw)) {
+    if (only ? only.includes(key) : !SECRET_ATTR.test(key) && !PRIVATE_ATTR.has(key.toLowerCase()) && !isAddress(value)) attributes[key] = value;
+  }
   return { s: String(compressed && compressed.s), a: attributes, lc: Number(compressed && (compressed.lc || compressed.lu)) || null };
+}
+
+/** Every state that may reach the browser, cleaned; the ones that may not are left out. */
+function cleanAll(entries) {
+  const out = {};
+  for (const [id, st] of entries) {
+    const clean = cleanState(st, id);
+    if (clean) out[id] = clean;
+  }
+  return out;
 }
 
 const COMMAND_MS = 30_000;
@@ -199,8 +238,14 @@ export function createHa({ url, token, WebSocketImpl = globalThis.WebSocket, log
   function flush() {
     batchTimer = null;
     if (!pending) return;
-    const out = pending.reset ? { reset: true, set: snapshot() }
-      : { set: Object.fromEntries([...pending.set].filter((id) => states.has(id)).map((id) => [id, cleanState(states.get(id))])), remove: [...pending.remove] };
+    let out;
+    if (pending.reset) out = { reset: true, set: snapshot() };
+    else {
+      const set = cleanAll([...pending.set].filter((id) => states.has(id)).map((id) => [id, states.get(id)]));
+      // A state that turned into an address is removed, so its last value does not linger.
+      const hidden = [...pending.set].filter((id) => states.has(id) && !(id in set));
+      out = { set, remove: [...pending.remove, ...hidden] };
+    }
     pending = null;
     for (const fn of listeners) {
       try {
@@ -211,7 +256,7 @@ export function createHa({ url, token, WebSocketImpl = globalThis.WebSocket, log
     }
   }
 
-  const snapshot = () => Object.fromEntries([...states].map(([id, st]) => [id, cleanState(st)]));
+  const snapshot = () => cleanAll(states);
 
   /** Home Assistant's state message: a = added (full), c = changed (diff), r = removed. */
   function onStates(event) {

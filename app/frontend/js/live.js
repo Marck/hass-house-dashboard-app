@@ -4,7 +4,7 @@
 // come from Home Assistant as literal text (lit), not translation keys.
 //
 // Read-only: nothing here sends anything. Parts that are not live yet
-// (energy, network, people, weather, watering) keep the demo data and the
+// (energy, network, weather, watering) keep the demo data and the
 // views say so.
 
 /** A name that is shown as is, not looked up as a translation key. */
@@ -13,6 +13,8 @@ export const lit = (text) => ({ text: String(text) });
 const DOOR = ['door', 'window', 'opening', 'garage_door'];
 const MOTION = ['motion', 'occupancy', 'presence'];
 const OFF = ['unavailable', 'unknown'];
+// A person state that names no zone: Home Assistant's own two and what a broken tracker sends.
+const NO_VALUE = /^(unavailable|unknown|none|null|undefined|nan|[-+]?inf(inity)?)?$/i;
 const RECENT_S = 10 * 60;
 
 // media_player supported_features bits (Home Assistant MediaPlayerEntityFeature).
@@ -80,16 +82,41 @@ export function buildLive(d, registry, states) {
     if (!kind || e.hidden || e.category) return;
     d.ha.entities[e.id] = { kind, area: e.area, name: nameOf(e, st) };
   });
-  // Not live yet: no made-up people, camera event or weather in a real house.
+  // Not live yet: no camera event or weather in a real house.
   d.live = true;
   d.people = [];
   d.camera = { roomId: null };
   applyStates(d, states);
 }
 
+/**
+ * A person as the dashboard shows them: their name and the zone they are in,
+ * nothing else. Home Assistant's person state is home, not_home or the name of
+ * another zone; the backend sends no coordinates.
+ */
+export function personOf(id, st) {
+  const s = st && st.s;
+  const name = (st && st.a && st.a.friendly_name) || id.split('.')[1];
+  const base = { id, nameKey: lit(name) };
+  if (s === 'home') return { ...base, state: 'home' };
+  if (s === 'not_home') return { ...base, state: 'away' };
+  if (typeof s !== 'string' || NO_VALUE.test(s.trim())) return { ...base, state: 'unknown' };
+  return { ...base, state: 'zone', zoneKey: lit(s) };
+}
+
+function setPerson(d, id, st) {
+  const p = personOf(id, st);
+  const at = d.people.findIndex((x) => x.id === id);
+  if (at < 0) d.people.push(p);
+  // A state without a name (a removed person) keeps the name shown so far.
+  else d.people[at] = st && st.a && st.a.friendly_name ? p : { ...p, nameKey: d.people[at].nameKey };
+  d.people.sort((a, b) => a.nameKey.text.localeCompare(b.nameKey.text));
+}
+
 /** Update every live entity from the states (all of them, or the ones that changed). */
 export function applyStates(d, states, now = Date.now() / 1000) {
   Object.keys(states).forEach((id) => {
+    if (id.startsWith('person.')) return setPerson(d, id, states[id]);
     const e = d.ha.entities[id];
     if (!e) return;
     const st = states[id];

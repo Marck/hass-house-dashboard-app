@@ -50,6 +50,7 @@ Checked without reproducing any value. This summary follows the rule of plan sec
 |---|---|
 | Token in frontend code | Verified: no frontend file handles a token or the Home Assistant address |
 | Token in API responses and the live stream | Verified after a fix on 2026-11-23 (#35): credential-bearing attributes are filtered, with a test |
+| Network identifiers and locations in API responses and the live stream | Fixed on 2026-11-25: MAC and IP addresses, host names, vendor prefixes, access point and Wi-Fi names, calendar event locations, and all coordinates are filtered. People, trackers and zones send their name only, so a person is shown by zone (home, away or the zone's name). Not sent at all: an entity whose state is an address, a phone's geocoded location and its Wi-Fi name sensors. Tested with documentation addresses. A four-part version number looks like an IPv4 address and is dropped too; the dashboard shows none |
 | Logs | Verified: the code logs error names and codes only; the running pod's log holds connection events only |
 | Sessions and pairing | Verified: random ids stored hashed, `__Host-` cookies with `HttpOnly`, `Secure`, `SameSite=Lax`, short-lived pairing codes with a guess limit. A removed device's open stream ends at once since #35 |
 | Public images | Verified: all 19 published versions scanned for credential files and token patterns (with a planted control); none found. Their environment sets demo mode only |
