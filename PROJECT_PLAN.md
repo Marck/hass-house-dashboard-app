@@ -792,7 +792,7 @@ Reconciled 2026-11-23 against the code, the merged pull requests and a read-only
 
 ### Phase 2 milestone tracker
 
-The preview runs release v0.2.0 (2026-11-25). Work merged after that is not in the preview yet.
+The preview runs release v0.3.0 (2026-11-25). Work merged after that is not in the preview yet.
 
 | Milestone | Implemented | Tested | Verified in the preview | Verified on a device |
 |---|---|---|---|---|
@@ -806,7 +806,7 @@ The preview runs release v0.2.0 (2026-11-25). Work merged after that is not in t
 | Theme from the sun state | Yes | Yes | Not checked yet (in v0.1.0) | Not tested |
 | Registry changes at once | Yes | Yes | Partly: the real instance accepts the subscriptions (no refusal in the log, 2026-11-24) | n/a |
 | 7. Energy and climate, read-only, with gas and water | Yes | Yes | Partly: in v0.2.0, the screens were not inspected | Not tested |
-| 8. Network sources, read-only | Yes, once merged | Yes, including the privacy of the map | Partly: the map builder run against the real instance (2026-11-25), no address in its output; not in the preview yet | Not tested |
+| 8. Network sources, read-only | Yes | Yes, including the privacy of the map | Partly: the map builder run against the real instance (2026-11-25), no address in its output; in v0.3.0, the screen was not inspected | Not tested |
 | 9. Music, read-only | No | No | No | No |
 | 10. Commands | No: blocked, needs its own approval | | | |
 | 2.14 Styled pages | Yes | Yes | Reported | Not tested |
