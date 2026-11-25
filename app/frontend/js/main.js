@@ -16,6 +16,7 @@ import {
 } from './lock.js';
 import { createConfigSync } from './sync.js';
 import { buildLive, applyStates, removeStates, sunFrom } from './live.js';
+import { buildEnergy, energySensors } from './energy-live.js';
 import { pullCloses, pullOffset, PULL_START_PX } from './pull.js';
 
 const PREFS_KEY = 'hhd.prefs';
@@ -258,6 +259,7 @@ function commit() {
   }
   saveJson(CONFIG_KEY, serializeConfig(cfg));
   applyConfig(d, cfg);
+  if (liveState.ready) liveEnergy(); // a changed energy sensor shows at once
   route();
   pushConfig();
 }
@@ -791,6 +793,9 @@ const inputs = {
     commit();
     focusNext = `entity-drop:${roomId}:${entityId}`;
   },
+  'energy-map'(slot, value) {
+    if (edit.setEnergyEntity(cfg, slot, value)) commit();
+  },
   'ev-map'(slot, entityId) {
     if (edit.setEvEntity(cfg, slot, entityId)) commit();
   },
@@ -1057,11 +1062,31 @@ root.addEventListener('click', (event) => {
 // The dashboard waits for the first states before it shows anything, so demo
 // data never appears as if it were the house, and a saved configuration is
 // read against the real areas.
-const liveState = { on: false, ready: false, registry: null, source: null, timer: 0, retry: 0 };
+const liveState = { on: false, ready: false, registry: null, source: null, timer: 0, retry: 0, states: {}, energy: null };
 const readOnly = (name) => liveState.on && ['light', 'control'].includes(actionKind(name));
 
 function liveMessage(key) {
   root.innerHTML = `<main class="boot-msg"><p>${i18n.t(key)}</p></main>`;
+}
+
+/** The energy screen from the live states and the backend's totals (energy-live.js). */
+function liveEnergy() {
+  const entities = (liveState.registry && liveState.registry.entities) || [];
+  const names = Object.fromEntries(entities.map((e) => [e.id, e.name || e.id]));
+  Object.assign(d, buildEnergy(liveState.energy, liveState.states, cfg.energy.map, names, new Date()));
+  d.energySensors = energySensors(liveState.states, names);
+}
+
+/** Today's totals, every 5 minutes (Home Assistant writes statistics every 5 minutes). */
+function loadEnergy() {
+  window.fetch('/api/ha/energy', { credentials: 'same-origin', cache: 'no-store' })
+    .then((res) => (res.ok ? res.json() : null))
+    .then((snap) => {
+      if (!snap) return;
+      liveState.energy = snap;
+      if (liveState.ready) liveSchedule();
+    })
+    .catch(() => {});
 }
 
 function liveRefresh() {
@@ -1069,6 +1094,7 @@ function liveRefresh() {
   const at = new Date();
   d.now = { h: at.getHours(), m: at.getMinutes() };
   applyConfig(d, cfg);
+  liveEnergy();
   route();
   render();
 }
@@ -1083,6 +1109,7 @@ function liveFirst(states, start) {
   const at = new Date();
   d.now = { h: at.getHours(), m: at.getMinutes() };
   applyConfig(d, cfg);
+  liveEnergy();
   liveState.ready = true;
   start();
 }
@@ -1113,6 +1140,7 @@ function liveConnect(start) {
       }
       const states = latest;
       latest = null;
+      liveState.states = { ...states };
       if (!liveState.ready) {
         liveFirst(states, start);
         return;
@@ -1138,6 +1166,8 @@ function liveConnect(start) {
       return;
     }
     if (!liveState.ready) return;
+    Object.assign(liveState.states, change.set || {});
+    (change.remove || []).forEach((id) => { delete liveState.states[id]; });
     applyStates(d, change.set || {});
     removeStates(d, change.remove || []);
     liveSchedule();
@@ -1165,6 +1195,8 @@ window.fetch('/api/info', { credentials: 'same-origin', cache: 'no-store' })
   .then((info) => {
     if (!info || info.mode !== 'live') return boot();
     liveState.on = true;
+    loadEnergy();
+    setInterval(loadEnergy, 5 * 60_000);
     s.sunLive = true;
     s.sun = 'unavailable'; // light until Home Assistant says the sun is down
     liveMessage('live.loading');

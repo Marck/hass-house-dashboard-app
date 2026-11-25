@@ -231,6 +231,9 @@ export function createFixture() {
       },
     },
 
+    // Gas and water today (synthetic); live mode reads them from the Energy settings.
+    utilities: { gas: { today: 1.8, unit: 'm³' }, water: { today: 0.21, unit: 'm³', flow: { value: 0, unit: 'L/min' } } },
+
     // Candidate entities for the EV charging pickers, with the history a statistics
     // query would return. Phase 2 lists real entities from Home Assistant instead.
     ev: {

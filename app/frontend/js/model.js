@@ -214,6 +214,9 @@ export function evStats(d, cfg) {
 /** What a climate unit is doing right now, as a translation-key suffix. */
 export function acPhase(c) {
   if (!c.on) return 'off';
+  // Home Assistant says what the device is doing; that wins over a guess from the temperatures.
+  if (c.action === 'heating' || c.action === 'cooling') return c.target === undefined ? 'on' : c.action;
+  if (c.action === 'idle' && c.settable !== false) return 'reached';
   if (c.settable === false) return 'on';
   if (c.mode === 'heat') return c.current < c.target ? 'heating' : 'reached';
   if (c.mode === 'cool') return c.current > c.target ? 'cooling' : 'reached';

@@ -121,7 +121,7 @@ export const PUBLIC_PATHS = new Set(['/welcome.html', '/pair.html', '/js/pair.js
  * With it, everything but /healthz, the sign-in routes and PUBLIC_PATHS needs a
  * person or a paired device.
  */
-export function createHandler({ mode, root, auth = null, ha = null, configStore = null, log = console }) {
+export function createHandler({ mode, root, auth = null, ha = null, energy = null, configStore = null, log = console }) {
   // The frontend names its own build (Settings, About); this says what the server runs.
   const info = JSON.stringify({ mode, auth: auth ? 'oidc' : 'none' });
   async function serve(req, res) {
@@ -155,6 +155,11 @@ export function createHandler({ mode, root, auth = null, ha = null, configStore 
       const registry = ha.registry();
       if (!registry) return send(res, 503, TYPES['.json'], '{"error":"not loaded"}', { 'Cache-Control': 'no-store' });
       return send(res, 200, TYPES['.json'], JSON.stringify(registry), { 'Cache-Control': 'no-store' });
+    }
+    if (energy && pathname === '/api/ha/energy') {
+      const snap = energy.snapshot();
+      if (!snap) return send(res, 503, TYPES['.json'], '{"error":"not loaded"}', { 'Cache-Control': 'no-store' });
+      return send(res, 200, TYPES['.json'], JSON.stringify(snap), { 'Cache-Control': 'no-store' });
     }
     if (pathname.startsWith('/api/')) return send(res, 404, TYPES['.json'], '{"error":"not found"}');
 

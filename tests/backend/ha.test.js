@@ -4,7 +4,7 @@ import { createServer, request } from 'node:http';
 import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { createHa as makeHa, haSettings, READ, REGISTRY_EVENTS, shapeRegistry } from '../../app/backend/ha.js';
+import { createHa as makeHa, haSettings, READ, ENERGY_READ, REGISTRY_EVENTS, shapeRegistry } from '../../app/backend/ha.js';
 
 // Every client a test makes is stopped at the end, also when an assertion
 // fails half way: a running client would keep the test process alive.
@@ -96,7 +96,8 @@ test('connects, loads the registries and sends nothing but reads', async () => {
   await assert.rejects(ha.command('call_service'), /refused/);
   await assert.rejects(ha.command('config/area_registry/create'), /refused/);
   ha.stop();
-  assert.deepEqual([...new Set(fake.received)].sort(), ['auth', ...READ].sort(), 'only the auth and the read commands reached Home Assistant');
+  // The energy reads are sent by energy.js, not by the connection itself (energy.test.js).
+  assert.deepEqual([...new Set(fake.received)].sort(), ['auth', ...READ.filter((t) => !ENERGY_READ.includes(t))].sort(), 'only the auth and the read commands reached Home Assistant');
   assert.ok(lines.every((l) => !l.includes(TOKEN) && !l.includes(String(fake.port))), 'no token or address in the log');
 });
 

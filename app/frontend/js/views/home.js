@@ -72,7 +72,7 @@ function tonightCard({ d, t, tx, rich, f }) {
     <div class="eyebrow"><h2>${icon('sun')}${t('tonight.title')}</h2></div>
     ${sunArc(progress)}
     <p class="note-line">${icon('sunset')}<span>${rich('tonight.sun', { time: f.time(night.sunset.h, night.sunset.m) })} ${rich('tonight.outside', { state: tx(night.outside ? 'common.on' : 'common.off') })}</span></p>
-    <p class="note-line">${icon('battery')}<span>${rich('tonight.battery', { pct: f.pct(d.energy.battery.soc) })}</span></p>
+    ${d.energy.battery && d.energy.battery.soc !== null ? `<p class="note-line">${icon('battery')}<span>${rich('tonight.battery', { pct: f.pct(d.energy.battery.soc) })}</span></p>` : ''}
     <div class="btn-row">
       <button type="button" class="btn" ${act('scene', 'outside-on')}><span>${t('tonight.btn.on')}</span></button>
       <button type="button" class="btn" ${act('scene', 'outside-off')}><span>${t('tonight.btn.off')}</span></button>
@@ -114,7 +114,7 @@ export function homeView(c) {
     <div class="chips">
       ${live(c)}
       ${d.live ? '' : `<span class="chip">${f.unit(d.weather.temp, '°C')}, ${t(d.weather.conditionKey)}</span>
-      <span class="chip">${t('home.battery')} <b>${f.pct(d.energy.battery.soc)}</b></span>`}
+      ${d.energy.battery && d.energy.battery.soc !== null ? `<span class="chip">${t('home.battery')} <b>${f.pct(d.energy.battery.soc)}</b></span>` : ''}`}
       ${doorChip}
       ${camChip}
       ${d.live ? '' : `<span class="chip"><i class="dot is-warn"></i>${t('guard.label')} <b>${t(d.guardKey)}</b></span>`}

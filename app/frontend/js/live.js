@@ -16,10 +16,13 @@ const OFF = ['unavailable', 'unknown'];
 const RECENT_S = 10 * 60;
 
 // media_player supported_features bits (Home Assistant MediaPlayerEntityFeature).
+// Home Assistant's media player states (2026.11.1 MediaPlayerState) in the card's words; anything else is unavailable.
+const PLAYER = { playing: 'playing', buffering: 'playing', paused: 'paused', idle: 'idle', on: 'idle', off: 'off', standby: 'off' };
 const FEATURE = { play: 16384 | 1, prev: 16, next: 32, volume: 4, stop: 4096, group: 524288 };
 
 /** What the dashboard does with an entity, or null when it shows nothing for it. */
-export function kindOf(id, attributes = {}) {
+export function kindOf(id, attrs) {
+  const attributes = attrs || {}; // Home Assistant may send no attributes at all
   const domain = id.split('.')[0];
   const cls = attributes.device_class;
   if (domain === 'light' || domain === 'switch' || domain === 'climate') return domain;
@@ -33,6 +36,16 @@ export function kindOf(id, attributes = {}) {
 const nameOf = (entity, state) => entity.name || (state && state.a && state.a.friendly_name) || entity.id;
 const usable = (st) => Boolean(st) && !OFF.includes(st.s);
 const num = (v) => (typeof v === 'number' && Number.isFinite(v) ? v : undefined);
+
+/**
+ * A state as a number, or undefined. Strict: Number('') and Number(' ') are 0 and
+ * Number('0x10') is 16, but none of those is a reading.
+ */
+export const numeric = (s) => {
+  if (typeof s !== 'string' || !/^\s*-?(\d+\.?\d*|\.\d+)([eE][-+]?\d+)?\s*$/.test(s)) return undefined;
+  const v = Number(s);
+  return Number.isFinite(v) ? v : undefined;
+};
 
 /**
  * Replace the Home Assistant parts of d with the registry and states. Floors
@@ -89,22 +102,25 @@ export function applyStates(d, states, now = Date.now() / 1000) {
     else if (e.kind === 'climate') {
       const modes = Array.isArray(a.hvac_modes) ? a.hvac_modes : [];
       d.climate[id] = {
-        kind: modes.includes('cool') ? 'ac' : 'heating', nameKey, on: ok && st.s !== 'off',
+        kind: modes.includes('cool') ? 'ac' : 'heating', nameKey, on: ok && st.s !== 'off', unavailable: !ok,
         mode: st && st.s !== 'off' ? st.s : (modes.find((m) => m !== 'off') || 'heat'),
         current: num(a.current_temperature), target: num(a.temperature), min: num(a.min_temp) ?? 7, max: num(a.max_temp) ?? 35,
         step: num(a.target_temp_step) || 0.5, settable: num(a.temperature) !== undefined, fan: a.fan_mode, presets: {},
+        // What the device does right now, and a low/high range for devices that keep one (heat_cool).
+        action: ok && typeof a.hvac_action === 'string' ? a.hvac_action : null,
+        range: num(a.target_temp_low) !== undefined && num(a.target_temp_high) !== undefined ? [a.target_temp_low, a.target_temp_high] : null,
       };
     } else if (e.kind === 'speaker') {
       const bits = Number(a.supported_features) || 0;
       d.speakers[id] = {
-        kind: 'speaker', nameKey, state: ok ? st.s : 'unavailable',
+        kind: 'speaker', nameKey, state: ok ? (PLAYER[st.s] || 'unavailable') : 'unavailable',
         titleKey: a.media_title ? lit(a.media_title) : null, artistKey: a.media_artist ? lit(a.media_artist) : null, art: null,
         volume: Math.round((num(a.volume_level) || 0) * 100),
         features: Object.keys(FEATURE).filter((f) => bits & FEATURE[f]),
       };
     } else if (e.kind === 'door') e.door = { nameKey, open: on };
     else if (e.kind === 'motion') e.motion = on ? 'now' : (ok && st.lc && now - st.lc < RECENT_S ? 'recent' : null);
-    else if (e.kind === 'temp') e.temp = ok && Number.isFinite(Number(st.s)) ? Number(st.s) : undefined;
+    else if (e.kind === 'temp') e.temp = ok ? numeric(st.s) : undefined;
   });
 }
 

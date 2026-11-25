@@ -18,8 +18,12 @@ const missingTile = ({ t }, entityId, cls) => `<div class="tile ${cls} is-missin
 
 /** Text under a climate title, for example "Heating, 5.0° to go". */
 export function climateStatus({ t, f }, unit) {
+  if (unit.unavailable) return t('state.unavailable');
+  if (unit.on && unit.range) return t('climate.range', { low: f.temp(unit.range[0]), high: f.temp(unit.range[1]) });
   const phase = acPhase(unit);
-  if (phase === 'heating' || phase === 'cooling') return t(`ac.status.${phase}`, { delta: f.temp(Math.abs(unit.target - unit.current)) });
+  const known = Number.isFinite(unit.target) && Number.isFinite(unit.current);
+  if ((phase === 'heating' || phase === 'cooling') && known) return t(`ac.status.${phase}`, { delta: f.temp(Math.abs(unit.target - unit.current)) });
+  if (phase === 'heating' || phase === 'cooling') return t('ac.status.on');
   return t(`ac.status.${phase}`);
 }
 
@@ -34,7 +38,7 @@ export function climateVisual(c, id) {
       <circle class="ac-led" cx="226" cy="22" r="3"/>${air}</svg>` : '';
   return `${art}<div class="climate-read"><p class="big">${f.num(unit.current, 1)}<sup>°</sup></p>
       <p class="target"><small>${t('climate.target')}</small><b>${unit.on ? f.temp(unit.target) : t('common.off')}</b></p></div>
-    ${thermoScale(unit, f, t('climate.now', { temp: f.temp(unit.current) }), id)}`;
+    ${Number.isFinite(unit.current) && Number.isFinite(unit.target) ? thermoScale(unit, f, t('climate.now', { temp: f.temp(unit.current) }), id) : ''}`;
 }
 
 /** Target temperature control, the same for air conditioning and heating. */
