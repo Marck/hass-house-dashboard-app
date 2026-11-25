@@ -6,7 +6,7 @@
 // and "modified" says the commit named is not quite what is running.
 // The version itself is written in one place, package.json.
 export const BUILD = {
-  version: '0.2.0',
+  version: '0.3.0',
   channel: 'dev',
   commit: '',
   modified: false,
