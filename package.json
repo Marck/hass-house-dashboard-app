@@ -1,6 +1,6 @@
 {
   "name": "hass-house-dashboard-app",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "private": true,
   "description": "Custom Home Assistant dashboard: a zero-dependency frontend and a small Node backend.",
   "license": "MIT",
