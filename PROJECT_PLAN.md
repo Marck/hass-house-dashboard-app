@@ -415,93 +415,83 @@ Accepted when: the tabs and the overview follow playback without a reload; a gro
 
 Architecture and breakdown, approved 2026-11-17: [docs/phase-2-architecture.md](docs/phase-2-architecture.md). Step status: the milestone tracker in section 11.
 
+Implementation status lives in one place: the milestone tracker in section 11. The lists below are the scope of each part; a ticked item is built and tested, an open item names where it is handled.
+
 ### 6.1 Integration design
 
-- [ ] Reconfirm architecture diagram and trust boundaries.
-- [ ] Finalize backend adapter contract and normalized UI data model.
-- [ ] Identify required REST endpoints and service-call patterns.
-- [ ] Identify WebSocket subscriptions/events required for live updates.
-- [ ] Define allowlist of permitted entity domains, services and command payloads.
-- [ ] Define behavior for unavailable, unknown, stale, offline and unauthorized entities.
-- [ ] Confirm no HA token/credential is sent to the browser.
+- [x] Architecture diagram and trust boundaries (`docs/architecture.md`, `docs/phase-2-architecture.md`).
+- [x] Backend adapter contract and normalized UI data model (`app/frontend/js/live.js`, `energy-live.js`, `network-live.js`).
+- [x] WebSocket subscriptions and events for live updates (`READ`, `REGISTRY_EVENTS` in `app/backend/ha.js`). There is no REST path: the backend reads everything over the WebSocket.
+- [x] Entity domains the dashboard shows (`kindOf` in `live.js`).
+- [ ] Allowlist of services and command payloads: step 10, with its own approval.
+- [x] Unavailable, unknown, stale, offline and odd states (step 7 robustness tests in `tests/unit/live.test.js`, `tests/backend/network.test.js`).
+- [x] No Home Assistant credential reaches the browser (tests in `tests/backend/ha.test.js`).
 
-### 6.2 REST implementation
+### 6.2 Backend reads and commands
 
-- [ ] Retrieve initial dashboard snapshot through backend adapter.
-- [ ] Implement allowlisted service calls for approved controls.
-- [ ] Validate request bodies and reject unsupported entity/service combinations.
-- [ ] Return safe normalized success/error results.
-- [ ] Handle HA timeouts, restarts, rate limits and partial failures.
-- [ ] Ensure logs redact sensitive headers, payloads and identifiers.
+- [x] Initial snapshot through the backend (`/api/ha/registry`, `/api/ha/states`, `/api/ha/energy`, `/api/ha/network`).
+- [ ] Allowlisted service calls, request validation, refusing unsupported entity and service combinations and read-only entities, safe results: step 10.
+- [x] Home Assistant timeouts and restarts: command timeout, reconnect with backoff, every state again after a reconnect (`tests/backend/ha.test.js`).
+- [x] Logs carry neither the token nor the Home Assistant address (tested); states and pictures are never logged.
 
 ### 6.3 WebSocket implementation
 
-- [ ] Establish backend-owned HA WebSocket connection.
-- [ ] Authenticate server-side without exposing credentials to browser.
-- [ ] Subscribe only to required state/event updates.
-- [ ] Forward minimal normalized updates to frontend.
-- [ ] Reconnect safely after network interruption or HA restart.
-- [ ] Prevent duplicate subscriptions and stale update races.
-- [ ] Verify language/theme changes remain instant and do not reconnect to HA unnecessarily.
+- [x] One backend-owned connection, authenticated server-side, subscribing only to `READ`.
+- [x] Minimal normalized updates to the browser, batched every 0.5 s.
+- [x] Reconnect after a network interruption or a Home Assistant restart, without duplicate subscriptions (tested).
+- [x] Language and theme changes are client-side and never touch the connection.
 
 ### 6.4 Integration coverage
 
-- [ ] Zigbee-backed entities.
-- [ ] Shelly entities.
-- [ ] ESPHome entities.
-- [ ] Wi-Fi device entities.
-- [ ] Solar, inverter, battery and energy entities.
-- [ ] UniFi/network entities.
-- [ ] Missing integrations and unsupported capabilities do not break the UI.
+- [x] Entities are handled by domain and device class, so Zigbee, Shelly, ESPHome and Wi-Fi devices need nothing per integration.
+- [x] Solar, inverter, battery and energy (step 7). UniFi and Zigbee network (step 8).
+- [x] A missing integration or capability leaves its part out (tests per step).
 
 ### 6.5 Local operation and testing
 
-- [ ] Provide secret-free sample configuration and private local configuration instructions.
-- [ ] Add local run/build/test commands.
-- [ ] Run frontend and backend locally on a PC.
-- [ ] Test initial state loading, live updates and each approved control/failure path.
-- [ ] Test reconnection after HA/WebSocket interruption.
-- [ ] Test English/Dutch and all theme modes with live data.
-- [ ] Test iPad Air 2 and iPhone 13 on actual devices where possible.
-- [ ] Measure load time, memory use, interaction latency and long-session stability.
-- [ ] Check browser console, server logs and network traffic for leaked credentials/personal data.
-- [ ] Confirm browser traffic goes only to dashboard backend, never directly to HA.
+- [x] Secret-free sample configuration, local run, build and test commands (`README.md`, `docs/deployment.md`).
+- [x] Initial loading, live updates and reconnection, against the fake Home Assistant.
+- [x] Browser traffic goes to the dashboard backend only (`connect-src 'self'` in the page's policy).
+- [ ] Each control and its failure path: step 10.
+- [ ] English, Dutch and every theme with live data on the preview, and the iPad Air 2 and iPhone 13: `docs/device-testing.md`.
+- [ ] Load time, memory, latency and long-session stability on the devices: `docs/device-testing.md`.
 
 ### 6.6 Configurable layout and controls
 
-- [ ] Store the floor, room and card configuration in the backend, shared across devices, validated and size-limited.
-- [ ] Export and import the stored configuration as a file, for backup and migration. The UI stays the only way to edit it; there is no YAML editing.
-- [ ] Map heating to climate entities with a settable target; show on/off only where none exists.
-- [ ] Default floors and rooms from Home Assistant floors and areas; keep overrides in the dashboard, with no writes to the Home Assistant registry.
+- [x] Floor, room and card configuration in the backend, shared, validated and size-limited (step 5).
+- [x] Export and import as a file; the UI is the only editor.
+- [x] Heating mapped to climate entities with a settable target.
+- [x] Floors and rooms default from Home Assistant floors and areas; no writes to the registry.
+- [x] Per entity: read-only and ignore when unavailable (2026-11-26). Four distinct cases: visible and controllable (from step 10), visible but read-only, ignored while unavailable (greyed, no warning), temporarily unavailable (amber, counted). Read-only is enforced in the browser today and must be enforced by the backend in step 10.
 
 ### 6.7 Area links, EV charging and network views
 
-- [ ] Registry discovery over WebSocket (areas, floors, devices, entities) with update subscriptions; resolve an entity's area through its device.
-- [ ] Store room-to-area links, inclusions and exclusions in the backend; warn on area IDs that no longer exist.
-- [ ] EV: entity discovery for the pickers, live states, statistics over selectable periods where supported. Test combinations of mapped, unmapped and unavailable entities and of units.
-- [ ] Network: read UniFi and Zigbee devices through Home Assistant, with a status per source. Verify which fields each integration really exposes before designing the live map.
+- [x] Registry discovery with update subscriptions; an entity's area through its device.
+- [x] Room-to-area links, inclusions and exclusions in the backend; missing areas are reported.
+- [ ] EV: live statistics. Still demo data in live mode; not scheduled.
+- [x] Network from UniFi and ZHA through Home Assistant, checked against what each integration really exposes (step 8).
 
-### 6.8 Music with several speakers
+### 6.8 Music with several speakers (step 9)
 
-Not started. Needs the owner's go like the rest of Phase 2.
+Not started. Step 9 has its own approval, separate from the Phase 2 approval: given 2026-11-27, read-only; the design goes to the owner before it is built (approval log).
 
 - [ ] Media player discovery and live state for the managed players, with each player's real capabilities.
-- [ ] Group membership: decide between user-chosen members and inference by the backend, then test that members are not listed twice.
-- [ ] Controls through media player services, choosing the stop service per player.
-- [ ] Temporary grouping through `join` and `unjoin` where the capability is reported; verify with the owner's real speakers which ones qualify.
-- [ ] Test combinations of single speakers and groups, missing metadata, and speakers that disconnect.
+- [ ] Group membership chosen by the user; nothing inferred where Home Assistant does not report it.
+- [ ] Permanent versus temporary groups; temporary grouping only where `join` and `unjoin` are reported, verified on the owner's speakers. Google Cast limits stated plainly.
+- [ ] Independent stop and playback per player, chosen by capability; correct room assignment; unavailable speakers shown as such.
+- [ ] Test single speakers and groups, missing metadata and speakers that disconnect.
 
 ### 6.9 Sign-in, pairing and setup
 
-Not started. Needs the owner's go like the rest of Phase 2.
+Built (milestones 2, 3 and 5); verification status in the milestone tracker.
 
-- [ ] Backend sessions; proxy mode that accepts identity headers from the configured proxy only.
-- [ ] Sign-in with the Home Assistant account. First check that its sign-in page renders on Safari 15.
-- [ ] Device pairing: short-lived code, approval by a signed-in person, long-lived revocable device session, list of paired devices in the settings.
-- [ ] Setup once per installation in the backend; device steps per device.
-- [ ] Threat review of all three before use outside the local network.
+- [x] Backend sessions, OIDC sign-in by the backend (decision 2026-11-17, replacing proxy headers and the Home Assistant account sign-in).
+- [x] Device pairing: short-lived code, approval by a signed-in person, long-lived revocable device session, paired devices in the settings; a removed device is refused on its next request.
+- [x] Setup once per installation in the backend.
+- [ ] Per-device setup steps: not built.
+- [ ] Threat review before use outside the local network: section 7.4.
 - [x] Signed-out, sign-in-failed, not-found and error pages in the site's style with EN/NL (2.14).
-- [x] Sheets close with a pull down on the handle (2.15). Checked in a browser at phone size with mouse and touch; still to check on the iPad Air 2 and an iPhone (`docs/device-testing.md`).
+- [x] Sheets close with a pull down on the handle (2.15). Still to check on the devices (`docs/device-testing.md`).
 
 ### Phase 2 deliverables
 
@@ -568,7 +558,8 @@ The purpose is testing on the real iPad as early as possible. This is the only a
 - [ ] Keep HA credentials in operator-managed Kubernetes Secret or approved external secret manager; never commit Secret values.
 - [ ] Inject secrets only into backend container that requires them.
 - [ ] Never pass HA credentials to frontend assets or browser responses.
-- [ ] Apply NetworkPolicies to allow only required dashboard-backend → HA traffic and required client → dashboard traffic, where supported.
+- [ ] Default-deny NetworkPolicy in the dashboard namespace; allow only the backend to Home Assistant's API port, DNS and the identity provider, and clients to the dashboard. Enforcement is proven in 7.4, not assumed from the configuration.
+- [ ] No browser traffic to Home Assistant: the page allows connections to its own origin only (`connect-src 'self'`); keep it that way.
 - [ ] Verify there is no public Ingress, NodePort or LoadBalancer path to HA API.
 - [ ] Restrict dashboard access to LAN and VPN paths only.
 - [ ] Add resource requests/limits, probes, security context and graceful shutdown.
@@ -785,7 +776,7 @@ Reconciled 2026-11-23 against the code, the merged pull requests and a read-only
 |---|---|---|
 | Phase 0: Preparation | Approved | Stack, repository and privacy baseline in place 2026-11-15 |
 | Phase 1: Design/mockup | Approved | The owner moved on to Phase 2 on 2026-11-15. Two acceptance items stay open: fidelity to the references (owner's judgement) and touch on a real device |
-| Phase 2: Local application | In progress | Approved 2026-11-17. Of 11 milestones (steps 1 to 10 and 6b), 9 are implemented (1 to 8 and 6b), none is verified on a device; 9 not started; 10 blocked |
+| Phase 2: Local application | In progress | Approved 2026-11-17. Of 11 milestones (steps 1 to 10 and 6b), 9 are implemented (1 to 8 and 6b), none is verified on a device; step 9 not started; step 10 not approved |
 | Phase 3: Cluster deployment | Early preview only | The preview runs in the cluster in live, read-only mode since 2026-11-18. Everything else in Phase 3 is not started and needs its own approval |
 | Privacy baseline | Verified | `scripts/privacy-check.mjs` in every verify; history, CI logs and every published image checked 2026-11-23 (`docs/security-and-privacy.md`) |
 | Target-device testing | Not started | Only "the preview opens on the iPad Air 2 after login" (2026-11-16, reported). The checklist in `docs/device-testing.md` has not been run on any device |
@@ -826,9 +817,11 @@ Explicitly outstanding until tested on the hardware: **Safari 15 cookie persiste
 | Live read-only preview | Connect the preview to the live Home Assistant with a token | Yes, 2026-11-18 (go for step 4, "including connecting to the live instance") |
 | Review follow-up | Work items 1 to 11 of the 2026-11-23 review: publish the fixes to the preview, a LAN and VPN allow-list on its route, theme from the sun state, faster registry updates, sync tests, steps 7 to 9, a dashboard token of its own, the device checklists | Yes, 2026-11-23 ("I approve all up to 11") |
 | Namespace | A8: the dashboard in its own namespace | Yes, 2026-11-23 |
-| Device commands | Step 10: any service call to Home Assistant | No |
+| Step 9: live music | Music read-only from Home Assistant (section 6.8) | Yes, 2026-11-27, read-only, separate from the Phase 2 approval; the design is presented before building |
+| Device commands | Step 10: any service call to Home Assistant | No: no command is sent before this is approved |
+| Dashboard credential (A3) | Replace the shared token with the dashboard's own | Approved 2026-11-23; deployed 2026-11-27; revocation check by the owner outstanding (`docs/deployment.md`) |
 | Phase 3 | Cluster/container/Helm work beyond the preview | No |
-| Security review | Section 7.4, before production; a test pod for NetworkPolicy needs its own go | No |
+| Security review | Section 7.4, before production; a test pod for NetworkPolicy needs its own go; the owner accepts its findings | No |
 | Production rollout | Deploy approved cluster changes, after the security review | No |
 
 ### Approval boundaries
@@ -848,7 +841,8 @@ The plan is reviewed by an external reviewer (ChatGPT) at the owner's request. A
 | 2026-11-17 | Done | Answered in `docs/phase-2-architecture.md` ("Where this differs from the review of 2026-11-17") |
 | 2026-11-23 | Done | Status tables reconciled; environments and network decision written down; credential audit; two fixes (#35); security review added as a gate (7.4) |
 | 2026-11-23, second round | Done | Personal and infrastructure references removed from the docs; every published image scanned; demo isolation proven and tested; one namespace wording (A8) everywhere; one milestone tracker with implemented, tested and verified kept apart; dedicated credential decision (A3) recorded |
-| Next (third round) | Open, ready for review since 2026-11-26 | Changes since the second round: steps 7 and 8, the privacy filter for network identifiers and locations, people by zone, the speedtest, per-entity read-only and ignore options, person pictures (releases v0.2.0 to v0.4.0); progress updates of 2026-11-25 and 2026-11-26 |
+| 2026-11-26, third round | Done | Sections 6.1 to 6.9 point to the milestone tracker; approval gates for step 9 and the credential; credential provisioning and its checks (`docs/deployment.md`); privacy of people and pictures (`docs/security-and-privacy.md`); device and theme checks (`docs/device-testing.md`); backend authorization tests required in step 10; Phase 3 network requirements in 7.3. Code follow-ups listed in section 12, each needing approval |
+| Next | Open | |
 
 For the next review, read in this order: this section and section 11 (status, approvals); `docs/phase-2-architecture.md` (environments, network); `docs/security-and-privacy.md` (audit); `docs/testing.md` (acceptance, mocked versus real versus device); section 7.4 (security review). Label findings Verified, Reported but not independently verified, Not yet tested, or Documentation inconsistency. Before the next review, every table above says what is true on that date.
 
@@ -941,6 +935,15 @@ Append an entry whenever meaningful work is completed:
 - Privacy/security review: the picture proxy accepts only Home Assistant's picture paths and always fetches from Home Assistant's own address. Read-only is a dashboard setting today; step 10 must enforce it in the backend.
 - Blockers: the dashboard's own token (item 10), the device checklists, and approvals for steps 9 and 10.
 
+## Progress update: 2026-11-27, third review round
+
+- Phase: 2 (documentation only; nothing built, published or deployed).
+- Completed: sections 6.1 to 6.9 reconciled with the milestone tracker, which stays the only source of status; approval log rows for step 9 and the dashboard credential; credential provisioning with checks that the old token is unused and that revoking the new one affects nothing else; privacy of people and pictures written down; device and theme checks added; step 10 requires backend authorization tests for read-only; default-deny and no browser-to-Home-Assistant traffic kept in 7.3.
+- Found: a browser may keep a loaded picture for up to 10 minutes, so a removed device can still show one it already had; the live-state filter is an allowlist only for people, trackers and zones. Both are follow-ups needing approval.
+- Already in place: the speedtest is optional and read-only for the dashboard (it reads sensors, never calls a service, and hides the speedtest without data); no device command exists.
+- Later that day: the dashboard's own token deployed and checked (section 12); step 9 approved, step 10 not; the three follow-ups approved.
+- Blockers: the device checklists, the revocation check, and the step 10 approval.
+
 ## 12. Open questions / required inputs
 
 Resolve these at the appropriate gate; do not block the planning document on details that can safely wait.
@@ -953,7 +956,10 @@ Resolve these at the appropriate gate; do not block the planning document on det
 - [x] Owner: confirm the namespace decision A8 (own namespace, as deployed) as authoritative (section 2.6). Confirmed 2026-11-23.
 - [x] Confirm desired LAN/VPN access enforcement point during Phase 3 review. Direction 2026-11-15: forward auth at the ingress. Replaced 2026-11-17: OIDC by the backend (or a Home Assistant account), live in the preview since 2026-11-18.
 - [ ] Confirm minimum browser versions after checking iPad Air 2 installed iOS/Safari version. Assumed Safari 15 (iPadOS 15.8 is the last release for that model); the installed version is not confirmed.
-- [ ] Owner: create a long-lived token for the dashboard's own Home Assistant user, so it no longer shares another application's token (decision A3, review item 10, approved 2026-11-23).
+- [ ] Follow-up, approved 2026-11-27 (review of 2026-11-26): the live-state filter as an allowlist for every domain, not only people, trackers and zones.
+- [ ] Follow-up, approved 2026-11-27: picture responses `private, no-cache` (revalidated, so a removed device stops showing a picture at once), with a test that a removed device's next picture request is refused.
+- [ ] Follow-up, approved 2026-11-27: choose which people the dashboard shows.
+- [x] Owner: create a long-lived token for the dashboard's own Home Assistant user, so it no longer shares another application's token (decision A3, review item 10). Done 2026-11-27: sealed from the owner's file without being shown, deployed; checked in the cluster that the mounted token is the new one and differs from the other application's, and that the dashboard connects. Still with the owner: the revocation check (`docs/deployment.md`, step 6) and removing the plaintext file.
 - [x] Phase 2: confirm which Zigbee integration is in use and which fields the UniFi and Zigbee integrations expose through Home Assistant. Answered 2026-11-25 on the real instance (step 8): ZHA; what each integration gives a non-admin user, and what it does not, is in `docs/phase-2-architecture.md`, step 8.
 - [ ] Phase 2: which of the owner's speakers report the grouping capability, and how group membership is learned (section 2.12).
 - [x] Phase 3: NetworkPolicy is enforced (verified 2026-11-01 in the helm-charts repo) and Home Assistant does not use host networking (checked 2026-11-17, read-only). (Answered 2026-11-16: the identity provider's normal login page does not work in Safari 15; its simplified page does, and the cluster now redirects old Safari there.)
