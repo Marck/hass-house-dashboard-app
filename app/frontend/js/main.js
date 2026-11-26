@@ -3,10 +3,10 @@
 import { createFixture } from './fixtures/synthetic.js';
 import { createI18n, LANGS } from './i18n/index.js';
 import { resolveTheme, MODES, SUN_STATES } from './theme.js';
-import { commands, applyConfig } from './model.js';
+import { commands, applyConfig, readOnlyEntity } from './model.js';
 import { musicCommands, groupable, tempGroup } from './music.js';
 import { needsOnboarding, startOnboarding, isLastStep, moveStep, toggleRoom, applyOnboarding, normalizeAccess, SIGNIN_MODES } from './onboard.js';
-import { CARDS, defaultConfig, normalizeConfig, parseConfig, serializeConfig, edit, netViews } from './config.js';
+import { CARDS, defaultConfig, normalizeConfig, parseConfig, serializeConfig, edit, netViews, entityOption } from './config.js';
 import { appView, context } from './views/app.js';
 import { climateVisual, climateStatus } from './views/room.js';
 import { EV_PERIODS } from './views/ev.js';
@@ -592,6 +592,15 @@ const actions = {
   'entity-toggle'(roomId, entityId) {
     if (edit.toggleEntity(cfg, roomId, entityId)) commit();
   },
+  // Locking is one tap; unlocking needs a second, the entity may keep the house running.
+  'entity-readonly'(entityId) {
+    const on = entityOption(cfg, entityId, 'readOnly');
+    if (on && !confirmed(`ro:${entityId}`)) return;
+    if (edit.setEntityOption(cfg, entityId, 'readOnly', !on)) commit();
+  },
+  'entity-ignore'(entityId) {
+    if (edit.setEntityOption(cfg, entityId, 'ignoreOffline', !entityOption(cfg, entityId, 'ignoreOffline'))) commit();
+  },
   'entity-drop'(roomId, entityId) {
     if (edit.dropEntity(cfg, roomId, entityId)) commit();
   },
@@ -837,6 +846,12 @@ root.addEventListener('click', (event) => {
   }
   if (readOnly(name)) {
     toast('toast.readOnly');
+    render();
+    return;
+  }
+  // A read-only entity is never switched, whatever asked for it (room settings).
+  if (['light', 'control'].includes(actionKind(name)) && readOnlyEntity(d, el.getAttribute('data-arg') || '')) {
+    toast('toast.readOnlyEntity');
     render();
     return;
   }

@@ -61,14 +61,15 @@ function parse(buf) {
 }
 
 /** Starts the fake. `token` is the one it accepts. */
-export async function startFakeHa({ token = TOKEN, data = DATA, states = STATES } = {}) {
+export async function startFakeHa({ token = TOKEN, data = DATA, states = STATES, http = null } = {}) {
   const received = [];
   const sockets = new Set();
   const subscribers = new Set(); // { say, id }
   const watchers = new Set(); // { say, id, eventType }
   const eventTypes = [];
   const sent = []; // full messages of commands answered by a function, to check their parameters
-  const server = createServer((req, res) => { res.writeHead(404); res.end(); });
+  // Plain HTTP (pictures): answered by the test's own handler when it gives one.
+  const server = createServer((req, res) => (http ? http(req, res) : (res.writeHead(404), res.end())));
   server.on('upgrade', (req, socket) => {
     if (req.url !== '/api/websocket') return socket.destroy();
     const accept = createHash('sha1').update(`${req.headers['sec-websocket-key']}258EAFA5-E914-47DA-95CA-C5AB0DC85B11`).digest('base64');

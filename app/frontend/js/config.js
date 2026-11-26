@@ -65,8 +65,27 @@ export function defaultConfig(d) {
     energy: { map: Object.fromEntries(ENERGY_SLOTS.map((slot) => [slot, 'auto'])) },
     net: { unifi: true, zigbee: true },
     music: defaultMusic(d),
+    entities: {},
   };
 }
+
+/** Per-entity options, set in a room's settings but kept with the entity, so they hold in every room that shows it. */
+export const ENTITY_OPTIONS = ['readOnly', 'ignoreOffline'];
+const ENTITY_OPTIONS_MAX = 1000;
+
+function normalizeEntities(raw) {
+  const out = {};
+  Object.keys(raw && typeof raw === 'object' ? raw : {}).slice(0, ENTITY_OPTIONS_MAX).forEach((id) => {
+    const o = raw[id];
+    if (!isId(id) || !o || typeof o !== 'object') return;
+    const kept = Object.fromEntries(ENTITY_OPTIONS.filter((key) => o[key] === true).map((key) => [key, true]));
+    if (Object.keys(kept).length) out[id] = kept;
+  });
+  return out;
+}
+
+/** True when the entity has that option switched on. */
+export const entityOption = (cfg, entityId, key) => Boolean(cfg.entities && cfg.entities[entityId] && cfg.entities[entityId][key]);
 
 /**
  * Every discovered player is managed at first. Home Assistant does not say
@@ -159,7 +178,7 @@ export function normalizeConfig(raw, d) {
     };
   }
 
-  return { version: CONFIG_VERSION, floors, rooms, cards, ev, energy, net, music };
+  return { version: CONFIG_VERSION, floors, rooms, cards, ev, energy, net, music, entities: normalizeEntities(raw.entities) };
 }
 
 /** Parse exported or stored text. Returns null when it is not a configuration at all. */
@@ -286,6 +305,17 @@ export const edit = {
     const room = cfg.rooms[roomId];
     if (!room || !room.include.includes(entityId)) return false;
     room.include.splice(room.include.indexOf(entityId), 1);
+    return true;
+  },
+  /** Switch a per-entity option (ENTITY_OPTIONS) on or off. */
+  setEntityOption(cfg, entityId, key, on) {
+    if (!isId(entityId) || !ENTITY_OPTIONS.includes(key)) return false;
+    if (!cfg.entities) cfg.entities = {};
+    const own = { ...(cfg.entities[entityId] || {}) };
+    if (on) own[key] = true;
+    else delete own[key];
+    if (Object.keys(own).length) cfg.entities[entityId] = own;
+    else delete cfg.entities[entityId];
     return true;
   },
   toggleEntity(cfg, roomId, entityId) {

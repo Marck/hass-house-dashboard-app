@@ -3,7 +3,7 @@
 import { esc } from '../util.js';
 import { icon } from '../icons.js';
 import { roomEntities, evStats, netModel, netStats } from '../model.js';
-import { EV_SLOTS, EV_ACCEPTS, ENERGY_SLOTS, ENERGY_ACCEPTS, NET_SOURCES, hiddenCards, netSources } from '../config.js';
+import { EV_SLOTS, EV_ACCEPTS, ENERGY_SLOTS, ENERGY_ACCEPTS, NET_SOURCES, hiddenCards, netSources, entityOption } from '../config.js';
 import { LOCK_SCOPES, LOCK_METHODS, LOCK_IDLE_MINUTES, PIN_LENGTH } from '../lock.js';
 import { BUILD } from '../build-info.js';
 import { act, toggle, seg, select, eyebrow, sheet, textInput, roomNameRaw, floorName, floorNameRaw, showId, canEditConfig } from './parts.js';
@@ -58,6 +58,22 @@ export function planEditor(c) {
 }
 
 /** A room's own settings: name, floor, linked areas and the entities it shows. */
+// Kinds a person could switch once commands exist (step 10); only those can be locked.
+const CONTROLLABLE = ['light', 'switch', 'climate', 'speaker'];
+
+/** The per-entity options under an entity row: read-only, and ignore when unavailable. */
+function entityOptions(c, e, ename) {
+  const { s, t, cfg } = c;
+  const opt = (key, label, help, extra = '') => `<span class="ed-opt"><span class="ed-name"><b>${label}</b><small>${help}</small></span>${extra}</span>`;
+  const readOnly = entityOption(cfg, e.id, 'readOnly');
+  const unlocking = readOnly && s.confirm === `ro:${e.id}`;
+  const lock = CONTROLLABLE.includes(e.kind) ? opt('readOnly', t('roomcfg.readOnly'), t(unlocking ? 'roomcfg.readOnlyConfirm' : 'roomcfg.readOnlyHelp'),
+    toggle({ on: readOnly, label: t('roomcfg.readOnlyFor', { name: ename }), action: 'entity-readonly', arg: e.id, tone: unlocking ? 'amber' : 'teal' })) : '';
+  const quiet = opt('ignoreOffline', t('roomcfg.ignoreOffline'), t('roomcfg.ignoreOfflineHelp'),
+    toggle({ on: entityOption(cfg, e.id, 'ignoreOffline'), label: t('roomcfg.ignoreOfflineFor', { name: ename }), action: 'entity-ignore', arg: e.id }));
+  return `<div class="ed-opts">${lock}${quiet}</div>`;
+}
+
 export function roomConfigSheet(c, id) {
   const { s, d, cfg, t, tn } = c;
   const room = d.rooms[id];
@@ -95,8 +111,9 @@ export function roomConfigSheet(c, id) {
     const control = e.via === 'manual'
       ? `<button type="button" class="btn" ${act('entity-drop', id, e.id)}><span>${t('roomcfg.remove')}</span></button>`
       : toggle({ on: !e.excluded, label: t('roomcfg.show', { name: ename }), action: 'entity-toggle', arg: id, val: e.id });
-    return `<li class="tile ed-row${e.excluded ? ' is-dim' : ''}"><span class="ic-box">${icon(KIND_ICONS[e.kind] || 'chip')}</span>
-      <span class="ed-name"><b>${esc(ename)}</b><small>${t(`entity.kind.${e.kind}`)} · <span class="mono">${showId(e.id)}</span></small><small>${source}</small></span>${control}</li>`;
+    return `<li class="tile ed-row ed-wrap${e.excluded ? ' is-dim' : ''}"><span class="ic-box">${icon(KIND_ICONS[e.kind] || 'chip')}</span>
+      <span class="ed-name"><b>${esc(ename)}</b><small>${t(`entity.kind.${e.kind}`)} · <span class="mono">${showId(e.id)}</span></small><small>${source}</small></span>${control}
+      ${entityOptions(c, e, ename)}</li>`;
   }).join('');
   const missingRows = found.missingEntities.map((entityId) => `<li class="tile ed-row is-missing"><span class="ic-box">${icon('alert')}</span>
     <span class="ed-name"><b>${t('entity.notFound')}</b><small class="mono">${showId(entityId)}</small><small>${t('entity.notFoundHelp')}</small></span>

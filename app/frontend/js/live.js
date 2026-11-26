@@ -100,7 +100,8 @@ export function buildLive(d, registry, states) {
 export function personOf(id, st) {
   const s = st && st.s;
   const name = (st && st.a && st.a.friendly_name) || id.split('.')[1];
-  const base = { id, nameKey: lit(name) };
+  // The picture itself comes from the backend (/api/ha/avatar); the state only says there is one.
+  const base = { id, nameKey: lit(name), picture: Boolean(st && st.a && st.a.picture === true) };
   if (s === 'home') return { ...base, state: 'home' };
   if (s === 'not_home') return { ...base, state: 'away' };
   if (typeof s !== 'string' || NO_VALUE.test(s.trim())) return { ...base, state: 'unknown' };

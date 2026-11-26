@@ -39,6 +39,8 @@ export function roomEntities(d, roomConfig) {
 
 /** Rebuild d.floors and d.rooms from the configuration and the registries. */
 export function applyConfig(d, cfg) {
+  // Per-entity options (read-only, ignore when unavailable), for the views and summaries.
+  d.entityOptions = cfg.entities || {};
   d.rooms = {};
   d.floors = cfg.floors.map((fl) => {
     const rooms = fl.rooms.map((id) => {
@@ -82,17 +84,22 @@ export function lightState(d, id) {
   return l.on ? 'on' : 'off';
 }
 
+/** An entity the household chose to ignore while it is unavailable: shown greyed, never a warning. */
+export const ignoredOffline = (d, id) => Boolean(d.entityOptions && d.entityOptions[id] && d.entityOptions[id].ignoreOffline);
+/** An entity that is shown but never switched from the dashboard. */
+export const readOnlyEntity = (d, id) => Boolean(d.entityOptions && d.entityOptions[id] && d.entityOptions[id].readOnly);
+
 export function roomSummary(d, id) {
   const room = d.rooms[id];
   const states = room.lights.map((lid) => lightState(d, lid));
-  const unavailable = states.filter((s) => s === 'unavailable').length;
+  const unavailable = room.lights.filter((lid, i) => states[i] === 'unavailable' && !ignoredOffline(d, lid)).length;
   const doorOpen = Boolean(room.door && room.door.open);
   const missing = room.missingAreas.length + room.missingEntities.length;
   return {
     on: states.filter((s) => s === 'on').length,
     total: states.length,
     unavailable,
-    available: states.length - unavailable,
+    available: states.filter((s) => s !== 'unavailable').length,
     doorOpen,
     missing,
     attention: unavailable > 0 || doorOpen || missing > 0,
@@ -102,14 +109,15 @@ export function roomSummary(d, id) {
 export function homeSummary(d) {
   const ids = Object.keys(d.rooms);
   const unique = (key) => [...new Set(ids.reduce((all, id) => all.concat(d.rooms[id][key]), []))];
-  const lights = unique('lights').map((id) => lightState(d, id));
+  const lightIds = unique('lights');
+  const lights = lightIds.map((id) => lightState(d, id));
   const climate = unique('climate').map((id) => d.climate[id]);
   return {
     doorsOpen: ids.filter((id) => d.rooms[id].door && d.rooms[id].door.open),
     doors: ids.filter((id) => d.rooms[id].door),
     motionNow: ids.filter((id) => d.rooms[id].motion === 'now'),
     lightsOn: lights.filter((s) => s === 'on').length,
-    unreachable: lights.filter((s) => s === 'unavailable').length,
+    unreachable: lightIds.filter((id, i) => lights[i] === 'unavailable' && !ignoredOffline(d, id)).length,
     acOn: climate.some((c) => c.kind === 'ac' && c.on),
     heatingOn: climate.some((c) => c.kind === 'heating' && c.on),
   };
@@ -253,34 +261,35 @@ export const commands = {
     if (preset in presets) presets[preset] = !presets[preset];
   },
   toggleSwitch(d, id) {
+    if (readOnlyEntity(d, id)) return;
     d.switches[id].on = !d.switches[id].on;
   },
   /** Returns false when the light cannot be reached, so the UI can say so. */
   toggleLight(d, id) {
-    if (lightState(d, id) === 'unavailable') return false;
+    if (lightState(d, id) === 'unavailable' || readOnlyEntity(d, id)) return false;
     d.lights[id].on = !d.lights[id].on;
     return true;
   },
   setRoomLights(d, roomId, on) {
     d.rooms[roomId].lights.forEach((id) => {
-      if (lightState(d, id) !== 'unavailable') d.lights[id].on = on;
+      if (lightState(d, id) !== 'unavailable' && !readOnlyEntity(d, id)) d.lights[id].on = on;
     });
   },
   allLightsOff(d) {
-    Object.values(d.lights).forEach((l) => {
-      l.on = false;
+    Object.keys(d.lights).forEach((id) => {
+      if (!readOnlyEntity(d, id)) d.lights[id].on = false;
     });
   },
   setClimateKind(d, kind, on) {
-    Object.values(d.climate).forEach((c) => {
-      if (c.kind === kind) c.on = on;
+    Object.keys(d.climate).forEach((id) => {
+      if (d.climate[id].kind === kind && !readOnlyEntity(d, id)) d.climate[id].on = on;
     });
   },
   setOutside(d, on) {
     d.tonight.outside = on;
     Object.values(d.rooms).forEach((room) => {
       if (room.outdoor) room.lights.forEach((id) => {
-        if (lightState(d, id) !== 'unavailable') d.lights[id].on = on;
+        if (lightState(d, id) !== 'unavailable' && !readOnlyEntity(d, id)) d.lights[id].on = on;
       });
     });
   },
