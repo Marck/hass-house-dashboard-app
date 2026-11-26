@@ -809,6 +809,7 @@ The preview runs release v0.3.0 (2026-11-25). Work merged after that is not in t
 | 8. Network sources, read-only | Yes | Yes, including the privacy of the map | Partly: the map builder run against the real instance (2026-11-25), no address in its output; in v0.3.0, the screen was not inspected | Not tested |
 | 9. Music, read-only | No | No | No | No |
 | 10. Commands | No: blocked, needs its own approval | | | |
+| Entity options and person pictures (2026-11-26) | Yes, once merged | Yes | Partly: pictures fetched from the real instance; not in the preview yet | Not tested |
 | 2.14 Styled pages | Yes | Yes | Reported | Not tested |
 | 2.15 Pull to close | Yes | Yes | n/a | Not tested |
 | Security review (7.4) | No: after step 10, gate before production | | | |

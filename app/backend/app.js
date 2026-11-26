@@ -121,7 +121,7 @@ export const PUBLIC_PATHS = new Set(['/welcome.html', '/pair.html', '/js/pair.js
  * With it, everything but /healthz, the sign-in routes and PUBLIC_PATHS needs a
  * person or a paired device.
  */
-export function createHandler({ mode, root, auth = null, ha = null, energy = null, configStore = null, log = console }) {
+export function createHandler({ mode, root, auth = null, ha = null, energy = null, avatars = null, configStore = null, log = console }) {
   // The frontend names its own build (Settings, About); this says what the server runs.
   const info = JSON.stringify({ mode, auth: auth ? 'oidc' : 'none' });
   async function serve(req, res) {
@@ -151,6 +151,12 @@ export function createHandler({ mode, root, auth = null, ha = null, energy = nul
       return send(res, 200, TYPES['.json'], JSON.stringify(all), { 'Cache-Control': 'no-store' });
     }
     if (ha && pathname === '/api/ha/stream') return stream(req, res, ha, () => !auth || Boolean(auth.session(req)));
+    if (ha && avatars && pathname.startsWith('/api/ha/avatar/')) {
+      const path = ha.personPicture(pathname.slice('/api/ha/avatar/'.length));
+      const image = path ? await avatars.get(path) : null;
+      if (!image) return send(res, 404, TYPES['.json'], '{"error":"no picture"}', { 'Cache-Control': 'no-store' });
+      return send(res, 200, image.type, image.body, { 'Cache-Control': 'private, max-age=600' });
+    }
     if (ha && pathname === '/api/ha/network') {
       const network = ha.network();
       if (!network) return send(res, 503, TYPES['.json'], '{"error":"not loaded"}', { 'Cache-Control': 'no-store' });

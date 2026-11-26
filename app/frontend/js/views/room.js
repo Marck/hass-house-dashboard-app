@@ -1,6 +1,6 @@
 // Screen A: room detail sheet.
 import { icon } from '../icons.js';
-import { roomSummary, lightState, acPhase } from '../model.js';
+import { roomSummary, lightState, acPhase, readOnlyEntity, ignoredOffline } from '../model.js';
 import { thermoScale } from '../charts.js';
 import { act, toggle, seg, eyebrow, roomName, floorName, showId, canEditConfig } from './parts.js';
 
@@ -94,18 +94,24 @@ function climateSection(c, id, missing) {
     <div class="climate-grid">${cards}${missing.map((eid) => missingTile(c, eid, 'climate')).join('')}</div></section>`;
 }
 
+/** A read-only entity: the same tile, but not a button, with a lock where a control would be. */
+const lockedTile = ({ t }, ic, nameKey, stateText, cls) => `<div class="tile ${cls} is-locked"><span class="ic-box">${icon(ic)}</span>
+  <b>${t(nameKey)}</b><small>${stateText} · ${icon('lock')}<span>${t('entity.readOnly')}</span></small></div>`;
+
 function lightsSection(c, id, sum, missing) {
   const { d, t, tx, f } = c;
   const room = d.rooms[id];
   if (!room.lights.length && !missing.length) return '';
   const cards = room.lights.map((lid) => {
     const state = lightState(d, lid);
-    return `<li><button type="button" class="tile light is-${state}" aria-pressed="${state === 'on'}"${state === 'unavailable' ? ' aria-disabled="true"' : ''} ${act('light', lid)}>
+    const quiet = state === 'unavailable' && ignoredOffline(d, lid) ? ' is-quiet' : '';
+    if (readOnlyEntity(d, lid)) return `<li>${lockedTile(c, 'bulb', d.lights[lid].nameKey, t(`light.state.${state}`), `light is-${state}${quiet}`)}</li>`;
+    return `<li><button type="button" class="tile light is-${state}${quiet}" aria-pressed="${state === 'on'}"${state === 'unavailable' ? ' aria-disabled="true"' : ''} ${act('light', lid)}>
       <span class="ic-box">${icon('bulb')}</span><b>${t(d.lights[lid].nameKey)}</b><small>${t(`light.state.${state}`)}</small></button></li>`;
   }).join('');
   const feeds = [...new Set(room.lights.map((lid) => d.lights[lid].feed).filter((sw) => sw && !d.switches[sw].on))];
   const banner = feeds.map((sw) => `<div class="banner is-warn" role="status"><p>${t('room.switchOff', { name: tx(d.switches[sw].nameKey) })}</p>
-    <button type="button" class="btn btn-gold" ${act('power-on', sw)}><span>${t('room.powerOn')}</span></button></div>`).join('');
+    ${readOnlyEntity(d, sw) ? '' : `<button type="button" class="btn btn-gold" ${act('power-on', sw)}><span>${t('room.powerOn')}</span></button>`}</div>`).join('');
   const master = room.lights.length ? `<span class="eyebrow-ctl">${t('room.lightsCount', { on: f.num(sum.on), total: f.num(sum.available) })}
     ${toggle({ on: sum.on > 0, label: t('room.allLights'), action: 'lights-all', arg: id, disabled: sum.available === 0, tone: 'amber' })}</span>` : '';
   return `${banner}<section>${eyebrow(t('room.lights'), master)}<ul class="light-grid">${cards}${missing.map((eid) => `<li>${missingTile(c, eid, 'light')}</li>`).join('')}</ul></section>`;
@@ -128,6 +134,7 @@ function powerSection(c, id, missing) {
   if (!room.switches.length && !missing.length) return '';
   const cards = room.switches.map((sw) => {
     const item = d.switches[sw];
+    if (readOnlyEntity(d, sw)) return `<li>${lockedTile(c, 'power', item.nameKey, `${t(item.on ? 'common.on' : 'common.off')} · ${t(item.noteKey)}`, `light${item.on ? ' is-on' : ' is-off'}`)}</li>`;
     return `<li><button type="button" class="tile light${item.on ? ' is-on' : ' is-off'}" role="switch" aria-checked="${item.on}" ${act('switch', sw)}>
       <span class="ic-box">${icon('power')}</span><b>${t(item.nameKey)}</b><small>${t(item.on ? 'common.on' : 'common.off')} · ${t(item.noteKey)}</small></button></li>`;
   }).join('');

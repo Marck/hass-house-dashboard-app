@@ -94,7 +94,9 @@ export function homeView(c) {
   if (sum.unreachable) lead.push(tn('home.unreachable', sum.unreachable));
 
   // A live person shows their zone only; the demo also shows a phone battery.
-  const people = d.people.map((p) => `<li class="person"><span class="avatar">${icon('user')}<i class="dot is-${p.state}"></i></span>
+  // A picture only for an id the backend could serve; the icon stays behind it while it loads.
+  const face = (p) => (p.picture && /^person\.[a-z0-9_]+$/.test(p.id) ? `<img src="/api/ha/avatar/${p.id}" alt="" width="48" height="48" decoding="async">` : '');
+  const people = d.people.map((p) => `<li class="person"><span class="avatar">${icon('user')}${face(p)}<i class="dot is-${p.state}"></i></span>
     <span class="person-main"><b>${t(p.nameKey)}</b><small>${p.zoneKey ? t(p.zoneKey) : t(`person.state.${p.state}`)}</small></span>
     ${Number.isFinite(p.battery) ? `<span class="person-batt" aria-label="${t('person.battery', { pct: f.pct(p.battery) })}">${f.pct(p.battery)}</span>` : ''}</li>`).join('');
 

@@ -15,19 +15,23 @@ import { authSettings, createAuth } from './auth.js';
 import { createDevices, jsonFile } from './devices.js';
 import { createHa, haSettings } from './ha.js';
 import { createEnergy } from './energy.js';
+import { createAvatars } from './avatar.js';
 import { createConfigStore } from './config-store.js';
 
 let config;
 let auth = null;
 let ha = null;
 let energy = null;
+let avatars = null;
 let configStore = null;
 try {
   config = settings(process.env);
   const sign = authSettings(process.env);
   if (config.mode === 'live') {
-    ha = createHa(haSettings(process.env));
+    const haConfig = haSettings(process.env);
+    ha = createHa(haConfig);
     energy = createEnergy({ ha });
+    avatars = createAvatars(haConfig);
   }
   if (sign.mode === 'oidc') {
     auth = createAuth({ ...sign, devices: createDevices({ store: jsonFile(`${sign.dataDir}/devices.json`) }) });
@@ -39,7 +43,7 @@ try {
   process.exit(1);
 }
 
-const server = createServer(createHandler({ ...config, auth, ha, energy, configStore }));
+const server = createServer(createHandler({ ...config, auth, ha, energy, avatars, configStore }));
 server.headersTimeout = 10_000;
 server.requestTimeout = 30_000;
 server.listen(config.port, config.host, () => {

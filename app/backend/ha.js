@@ -9,6 +9,7 @@
 // Neither the token nor the Home Assistant address is logged or returned.
 import { readFileSync } from 'node:fs';
 import { buildNetwork, keepNetworkRegistry } from './network.js';
+import { avatarPath } from './avatar.js';
 
 /** The registry lists, loaded on every connect and every 15 minutes. */
 export const LISTS = Object.freeze([
@@ -80,6 +81,8 @@ export function cleanState(compressed, id = '') {
   for (const [key, value] of Object.entries(raw)) {
     if (only ? only.includes(key) : !SECRET_ATTR.test(key) && !PRIVATE_ATTR.has(key.toLowerCase()) && !isAddress(value)) attributes[key] = value;
   }
+  // A person's picture is served by the backend (avatar.js); the browser only learns that there is one.
+  if (id.startsWith('person.') && avatarPath(raw.entity_picture)) attributes.picture = true;
   return { s: String(compressed && compressed.s), a: attributes, lc: Number(compressed && (compressed.lc || compressed.lu)) || null };
 }
 
@@ -120,7 +123,7 @@ export function haSettings(env) {
   const file = env.HASS_TOKEN_FILE;
   const token = file ? () => readFileSync(file, 'utf8').trim() : () => env.HASS_TOKEN.trim();
   if (!token()) throw new Error('the Home Assistant token is empty');
-  return { url: url.href, token };
+  return { url: url.href, base: base.href, token };
 }
 
 /** What the browser gets: the fields the dashboard uses, nothing else. */
@@ -423,6 +426,11 @@ export function createHa({ url, token, WebSocketImpl = globalThis.WebSocket, log
     registry: () => registry,
     /** Every state, without credentials or context. */
     states: () => (state === 'connected' && !fresh ? snapshot() : null),
+    /** The path of a person's picture (avatar.js), or null. */
+    personPicture(id) {
+      const st = /^person\.[a-z0-9_]+$/.test(id) ? states.get(id) : null;
+      return st ? avatarPath(st.a && st.a.entity_picture) : null;
+    },
     /** The UniFi and Zigbee map (network.js): opaque ids, no addresses. */
     network: () => (state === 'connected' && !fresh && netRegistry ? buildNetwork(netRegistry, states, now()) : null),
     /** fn({ reset, set, remove }) after each batch; returns a function that stops it. */
