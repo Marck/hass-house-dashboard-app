@@ -1,6 +1,6 @@
 # Home Assistant Dashboard: Project Plan
 
-**Status:** Phase 2 in progress. Read-only live integration built; device commands not started. Details in section 11.  
+**Status:** Phase 2 in progress. Read-only live integration built (steps 1 to 8, release v0.4.0 in the preview); music (step 9) and device commands (step 10) not started. Details in section 11.  
 **Delivery model:** Approval-gated. No implementation phase begins without explicit approval.  
 **Repository visibility:** Public from day one. Treat every committed byte, Git history entry, build log, artifact, issue, screenshot, and test fixture as public.
 
@@ -801,7 +801,7 @@ The preview runs release v0.4.0 (2026-11-26). Work merged after that is not in t
 | 3. Pairing | Yes | Yes, including that removing a device ends its live stream | No | **Not tested:** pairing on the iPad Air 2 after a Safari restart and after 7 days |
 | 4. Home Assistant, read-only | Yes | Yes | Yes: connected to the real instance, one reconnect seen in the log | n/a |
 | 5. Configuration in the backend | Yes | Yes, including the sync between devices | Reported: browser checks against the real backend | Not tested |
-| 6. Live states, backend | Yes | Yes, including the credential attribute filter | Partly: connected; the states it serves were not inspected | n/a |
+| 6. Live states, backend | Yes | Yes, including the credential, network identifier and location filters | Yes: every state it served was scanned on 2026-11-25 (v0.2.0): no address, coordinate, account or tracker id, geocoded address or Wi-Fi name | n/a |
 | 6b. Live states, frontend | Yes | Yes | No: checked against the fake Home Assistant only | Not tested |
 | Theme from the sun state | Yes | Yes | Not checked yet (in v0.1.0) | Not tested |
 | Registry changes at once | Yes | Yes | Partly: the real instance accepts the subscriptions (no refusal in the log, 2026-11-24) | n/a |
@@ -848,7 +848,7 @@ The plan is reviewed by an external reviewer (ChatGPT) at the owner's request. A
 | 2026-11-17 | Done | Answered in `docs/phase-2-architecture.md` ("Where this differs from the review of 2026-11-17") |
 | 2026-11-23 | Done | Status tables reconciled; environments and network decision written down; credential audit; two fixes (#35); security review added as a gate (7.4) |
 | 2026-11-23, second round | Done | Personal and infrastructure references removed from the docs; every published image scanned; demo isolation proven and tested; one namespace wording (A8) everywhere; one milestone tracker with implemented, tested and verified kept apart; dedicated credential decision (A3) recorded |
-| Next | Open, ready for review | |
+| Next (third round) | Open, ready for review since 2026-11-26 | Changes since the second round: steps 7 and 8, the privacy filter for network identifiers and locations, people by zone, the speedtest, per-entity read-only and ignore options, person pictures (releases v0.2.0 to v0.4.0); progress updates of 2026-11-25 and 2026-11-26 |
 
 For the next review, read in this order: this section and section 11 (status, approvals); `docs/phase-2-architecture.md` (environments, network); `docs/security-and-privacy.md` (audit); `docs/testing.md` (acceptance, mocked versus real versus device); section 7.4 (security review). Label findings Verified, Reported but not independently verified, Not yet tested, or Documentation inconsistency. Before the next review, every table above says what is true on that date.
 
@@ -924,6 +924,23 @@ Append an entry whenever meaningful work is completed:
 - Privacy/security review: no credential found anywhere, so none needs rotating.
 - Blockers: the dashboard's own token (item 10) and the device checklists (item 11) need the owner.
 
+## Progress update: 2026-11-25
+
+- Phase: 2. Releases v0.2.0 and v0.3.0, both deployed to the preview.
+- Completed: step 7 (energy, gas, water, climate; hardened against unavailable and odd states). A privacy fix: the live states sent network identifiers (MAC and IP addresses, host names, Wi-Fi names) and locations (coordinates of people, phones and zones, a phone's geocoded address, calendar event locations) to signed-in browsers; all filtered now, and people, trackers and zones send their name only. People are shown by zone (home, away, the zone's name). Step 8 (network map from UniFi and ZHA, built in the backend with opaque ids) with the Speedtest.net result on the WAN card when that integration exists.
+- Tests/evidence: every state the preview served scanned for addresses and locations (none found); the network map builder and the speedtest reader run against the real instance (no address in the output).
+- Privacy/security review: the filter fix above; no credential found.
+- Decision: the speedtest comes from Home Assistant, not the browser (an iPad measures its own Wi-Fi, not the connection); the UniFi console's own speedtest is not exposed by Home Assistant's UniFi integration and would need a separate credential, so it is not used.
+
+## Progress update: 2026-11-26
+
+- Phase: 2. Release v0.4.0, deployed to the preview.
+- Completed: per entity in a room's settings, read-only (shown, never switched from the dashboard; unlocking needs a second tap) and ignore when unavailable (greyed, no warning). Person pictures served by the backend from Home Assistant, without the picture's address reaching the browser.
+- Found: Home Assistant itself was OOM-killed repeatedly overnight. Cause: each Speedtest.net run adds about 215 MiB to Home Assistant (measured in a throwaway pod). Fixed outside this repository: a higher memory limit and request, polling off, one test a day. Documented in `docs/deployment.md` for anyone enabling that integration.
+- Tests/evidence: picture path, type and size checks; locked tiles have no control; ignored entities are not counted; both real pictures fetched by the deployed code.
+- Privacy/security review: the picture proxy accepts only Home Assistant's picture paths and always fetches from Home Assistant's own address. Read-only is a dashboard setting today; step 10 must enforce it in the backend.
+- Blockers: the dashboard's own token (item 10), the device checklists, and approvals for steps 9 and 10.
+
 ## 12. Open questions / required inputs
 
 Resolve these at the appropriate gate; do not block the planning document on details that can safely wait.
@@ -931,13 +948,13 @@ Resolve these at the appropriate gate; do not block the planning document on det
 - [x] Provide `dashboard-architecture.png`. The file no longer exists; the owner supplied an equivalent diagram on 2026-11-15, redrawn as text in `docs/architecture.md`.
 - [x] Confirm the four reference screenshots are available as project assets. Supplied in the session; kept out of the repository because they show another household.
 - [x] Confirm approved home layout/floor-plan source. Decision 2026-11-15: no real floor plan; the plan is generated from the rooms the user configures (section 2.7).
-- [ ] Confirm permission and scope for read-only `ha-mcp` discovery.
+- [x] Confirm permission and scope for read-only `ha-mcp` discovery. Used read-only since Phase 0; every discovery result recorded as counts and key names only, never names or addresses.
 - [x] Confirm whether dashboard is a separate service or a sidecar. Decision 2026-11-15: a separate Deployment (section 2.6).
 - [x] Owner: confirm the namespace decision A8 (own namespace, as deployed) as authoritative (section 2.6). Confirmed 2026-11-23.
-- [ ] Confirm desired LAN/VPN access enforcement point during Phase 3 review. Direction 2026-11-15: forward auth at the ingress. Replaced 2026-11-17: OIDC by the backend (or a Home Assistant account), live in the preview.
+- [x] Confirm desired LAN/VPN access enforcement point during Phase 3 review. Direction 2026-11-15: forward auth at the ingress. Replaced 2026-11-17: OIDC by the backend (or a Home Assistant account), live in the preview since 2026-11-18.
 - [ ] Confirm minimum browser versions after checking iPad Air 2 installed iOS/Safari version. Assumed Safari 15 (iPadOS 15.8 is the last release for that model); the installed version is not confirmed.
 - [ ] Owner: create a long-lived token for the dashboard's own Home Assistant user, so it no longer shares another application's token (decision A3, review item 10, approved 2026-11-23).
-- [ ] Phase 2: confirm which Zigbee integration is in use and which fields the UniFi and Zigbee integrations expose through Home Assistant.
+- [x] Phase 2: confirm which Zigbee integration is in use and which fields the UniFi and Zigbee integrations expose through Home Assistant. Answered 2026-11-25 on the real instance (step 8): ZHA; what each integration gives a non-admin user, and what it does not, is in `docs/phase-2-architecture.md`, step 8.
 - [ ] Phase 2: which of the owner's speakers report the grouping capability, and how group membership is learned (section 2.12).
 - [x] Phase 3: NetworkPolicy is enforced (verified 2026-11-01 in the helm-charts repo) and Home Assistant does not use host networking (checked 2026-11-17, read-only). (Answered 2026-11-16: the identity provider's normal login page does not work in Safari 15; its simplified page does, and the cluster now redirects old Safari there.)
 

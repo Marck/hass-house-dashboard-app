@@ -76,7 +76,7 @@ Rules the UI follows:
 - A configured entity that does not exist shows "Entity not found" with its ID.
 - All configuration happens in the UI. There is no YAML or file editing. Export and import cover backup and moving to another device.
 
-In live mode (`DASHBOARD_MODE=live`) the dashboard shows Home Assistant's areas as rooms, with their lights, switches, climate, speakers, doors, motion and temperatures, updated as they change. It does not control anything yet. Energy, network, watering, the evening card and EV charging still show demo data and say so.
+In live mode (`DASHBOARD_MODE=live`) the dashboard shows Home Assistant's areas as rooms, with their lights, switches, climate, speakers, doors, motion and temperatures, updated as they change, plus people by zone, energy, gas, water and the network. It does not control anything yet. Watering, the evening card and EV charging still show demo data and say so.
 
 With sign-in on, the configuration is kept by the backend and shared by every phone and tablet; the first person to sign in brings the configuration of their browser along. Without sign-in (the plain demo) it stays in the browser (`localStorage`), per device. A paired tablet shows the household's configuration and has no edit buttons; the layout is changed on a phone. Its own settings (language, theme, child lock) stay on the tablet.
 
