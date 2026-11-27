@@ -819,7 +819,7 @@ Explicitly outstanding until tested on the hardware: **Safari 15 cookie persiste
 | Namespace | A8: the dashboard in its own namespace | Yes, 2026-11-23 |
 | Step 9: live music | Music read-only from Home Assistant (section 6.8) | Yes, 2026-11-27, read-only, separate from the Phase 2 approval; the design is presented before building |
 | Device commands | Step 10: any service call to Home Assistant | No: no command is sent before this is approved |
-| Dashboard credential (A3) | Replace the shared token with the dashboard's own | Approved 2026-11-23; deployed 2026-11-27; revocation check by the owner outstanding (`docs/deployment.md`) |
+| Dashboard credential (A3) | Replace the shared token with the dashboard's own | Approved 2026-11-23; deployed 2026-11-27 |
 | Phase 3 | Cluster/container/Helm work beyond the preview | No |
 | Security review | Section 7.4, before production; a test pod for NetworkPolicy needs its own go; the owner accepts its findings | No |
 | Production rollout | Deploy approved cluster changes, after the security review | No |
@@ -942,7 +942,7 @@ Append an entry whenever meaningful work is completed:
 - Found: a browser may keep a loaded picture for up to 10 minutes, so a removed device can still show one it already had; the live-state filter is an allowlist only for people, trackers and zones. Both are follow-ups needing approval.
 - Already in place: the speedtest is optional and read-only for the dashboard (it reads sensors, never calls a service, and hides the speedtest without data); no device command exists.
 - Later that day: the dashboard's own token deployed and checked (section 12); step 9 approved, step 10 not; the three follow-ups approved.
-- Blockers: the device checklists, the revocation check, and the step 10 approval.
+- Blockers: the device checklists and the step 10 approval. The revocation check was made optional (owner, 2026-11-27).
 
 ## 12. Open questions / required inputs
 
@@ -959,7 +959,7 @@ Resolve these at the appropriate gate; do not block the planning document on det
 - [ ] Follow-up, approved 2026-11-27 (review of 2026-11-26): the live-state filter as an allowlist for every domain, not only people, trackers and zones.
 - [ ] Follow-up, approved 2026-11-27: picture responses `private, no-cache` (revalidated, so a removed device stops showing a picture at once), with a test that a removed device's next picture request is refused.
 - [ ] Follow-up, approved 2026-11-27: choose which people the dashboard shows.
-- [x] Owner: create a long-lived token for the dashboard's own Home Assistant user, so it no longer shares another application's token (decision A3, review item 10). Done 2026-11-27: sealed from the owner's file without being shown, deployed; checked in the cluster that the mounted token is the new one and differs from the other application's, and that the dashboard connects. Still with the owner: the revocation check (`docs/deployment.md`, step 6) and removing the plaintext file.
+- [x] Owner: create a long-lived token for the dashboard's own Home Assistant user, so it no longer shares another application's token (decision A3, review item 10). Done 2026-11-27: sealed from the owner's file without being shown, deployed; checked in the cluster that the mounted token is the new one and differs from the other application's, and that the dashboard connects. The plaintext file is deleted; the revocation check is optional (`docs/deployment.md`, step 6).
 - [x] Phase 2: confirm which Zigbee integration is in use and which fields the UniFi and Zigbee integrations expose through Home Assistant. Answered 2026-11-25 on the real instance (step 8): ZHA; what each integration gives a non-admin user, and what it does not, is in `docs/phase-2-architecture.md`, step 8.
 - [ ] Phase 2: which of the owner's speakers report the grouping capability, and how group membership is learned (section 2.12).
 - [x] Phase 3: NetworkPolicy is enforced (verified 2026-11-01 in the helm-charts repo) and Home Assistant does not use host networking (checked 2026-11-17, read-only). (Answered 2026-11-16: the identity provider's normal login page does not work in Safari 15; its simplified page does, and the cluster now redirects old Safari there.)
