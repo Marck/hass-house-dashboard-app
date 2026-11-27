@@ -63,6 +63,18 @@ Checked without reproducing any value. This summary follows the rule of plan sec
 | Personal and account references | Removed from the current documentation on 2026-11-23. Older commits and two pull request descriptions mentioned a private application's name; no credential, so history is not rewritten |
 | Exposed credential to rotate | None found |
 
+## People and pictures
+
+The dashboard shows who is home, by zone (home, away or a zone's name), and a person's picture when Home Assistant has one. That is personal data, so:
+
+- Both reach only signed-in people and paired devices. A paired device is a household tablet by design; removing it under Settings refuses its next request at once, including a picture.
+- The browser never gets coordinates, the picture's address or an account id: people, trackers and zones send their name only, and a picture is served by the backend from Home Assistant's own address (`/local/` and `/api/image/serve/` paths, PNG, JPEG, WebP or GIF up to 1 MB).
+- A picture response is `private`, so no shared proxy keeps it; a browser keeps it for up to 10 minutes. A removed device can therefore still show a picture it already loaded for those minutes (follow-up in the plan).
+- Pictures and presence are never logged and are not part of a configuration export or the diagnostics. Screenshots of a live dashboard show the household: keep them out of the repository, issues and pull requests (use the demo).
+- Presence is derived from Home Assistant's own zones, and the dashboard shows every person Home Assistant has, to anyone who can open it. There is no per-person setting yet (follow-up in the plan).
+
+The live-state filter is still partly a denylist: people, trackers and zones are on an allowlist, other domains drop known credential, network and location attributes. Turning the rest into an allowlist is a follow-up in the plan.
+
 ## Demo isolation
 
 The demo cannot read Home Assistant. Verified 2026-11-23 with the public image, and kept true by a test (`tests/backend/demo.test.js`):

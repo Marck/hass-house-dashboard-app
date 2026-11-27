@@ -28,7 +28,7 @@ An iPad has no console, so the dashboard reports on itself:
 
 ## Checklist
 
-Do this in portrait and landscape, in the light and the dark theme, in English and Dutch.
+Do this in portrait and landscape, in the light and the dark theme, in English and Dutch. Do it on the iPad Air 2 and the iPhone 13 themselves: a desktop browser or an emulator never counts as a pass.
 
 | Screen | Check |
 |---|---|
@@ -49,6 +49,11 @@ Do this in portrait and landscape, in the light and the dark theme, in English a
 | Sheets and scrolling | Long sheets scroll inside; the page behind does not. Pull to close as above. |
 | Themes | Light, Dark and Automatic in the settings; the choice survives a reload and a Safari restart. Floor plan labels, error bar, dialogs and settings are readable in both themes. |
 | Performance | Over the hour, Safari never reloads the tab by itself and taps answer without delay. |
+| Automatic theme | In live mode, Automatic follows Home Assistant's sun: it turns dark when the sun sets and light when it rises, without a reload. With the sun entity unavailable it stays light. A manual Light or Dark is never changed by the sun; Off is always light. |
+| Theme readability | In both themes: charts, the network map, person pictures, overlays, dialogs, warnings and disabled controls stay readable. |
+| Live screens | Energy and the network show the house's real values; parts Home Assistant does not have are left out, never shown as 0, NaN or a dash where a value belongs. |
+| People | Each person shows their zone and, where Home Assistant has one, their picture; no coordinates or addresses anywhere. |
+| iPhone 13 | Compact layout, navigation, room sheets, settings and configuration editing, theme and language switching, live updates and touch response. |
 
 A failure is anything that needs a second tap, anything cut off or overlapping, text below roughly 13 px, a red bar, or a failed diagnostic.
 
